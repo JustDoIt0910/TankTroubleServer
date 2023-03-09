@@ -85,7 +85,7 @@ namespace TankTrouble
         void fill(muduo::net::Buffer* buf) override
         {
             memcpy(&data_, buf->peek(), sizeof(T));
-            networkToHost(data_);
+            data_ = networkToHost(data_);
             buf->retrieve(sizeof(T));
         };
 
@@ -451,7 +451,7 @@ namespace TankTrouble
         }
         MessageTemplate(const MessageTemplate&) = delete;
         MessageTemplate(MessageTemplate&& mt)  noexcept {fieldTemplates_.swap(mt.fieldTemplates_);}
-        MessageTemplate& operator=(MessageTemplate&& mt)
+        MessageTemplate& operator=(MessageTemplate&& mt) noexcept
         {
             fieldTemplates_.swap(mt.fieldTemplates_);
             return *this;

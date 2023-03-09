@@ -46,6 +46,10 @@ namespace TankTrouble
         }
         OnlineUser onlineUser(conn, user.nickname, user.score);
         onlineUsers_[conn->peerAddress().toIpPort()] = onlineUser;
+        Message resp = codec_.getEmptyMessage(MSG_LOGIN_RESP);
+        resp.setField<Field<std::string>>("nickname", onlineUser.nickname_);
+        resp.setField<Field<uint32_t>>("score", onlineUser.score_);
+        Codec::sendMessage(conn, MSG_LOGIN_RESP, resp);
     }
 
     void Server::onCreateRoom(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp receiveTime)

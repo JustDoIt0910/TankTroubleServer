@@ -7,7 +7,7 @@
 namespace TankTrouble
 {
     GameRoom::GameRoom(int id, const std::string& name, int cap):
-            roomInfo_(id, name, cap, 0, Waiting) {}
+            roomInfo_(id, name, cap, 0, New) {}
 
     GameRoom::RoomInfo GameRoom::info() {return roomInfo_;}
 }

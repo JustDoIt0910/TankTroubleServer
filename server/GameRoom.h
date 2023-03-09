@@ -12,7 +12,7 @@ namespace TankTrouble
     class GameRoom
     {
     public:
-        enum RoomStatus {Waiting, Playing};
+        enum RoomStatus {New, Waiting, Playing};
         struct RoomInfo
         {
             uint8_t roomId_;
