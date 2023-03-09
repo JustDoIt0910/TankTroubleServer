@@ -50,6 +50,7 @@ namespace TankTrouble
         resp.setField<Field<std::string>>("nickname", onlineUser.nickname_);
         resp.setField<Field<uint32_t>>("score", onlineUser.score_);
         Codec::sendMessage(conn, MSG_LOGIN_RESP, resp);
+        sendRoomInfos(conn->peerAddress().toIpPort());
     }
 
     void Server::onCreateRoom(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp receiveTime)
