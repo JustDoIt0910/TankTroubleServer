@@ -23,11 +23,12 @@ namespace TankTrouble
     Server::Server(uint16_t port, int maxRoomNumber):
             server_(&loop_, muduo::net::InetAddress(port, true), "TankTroubleServer"),
             manager_(this),
-            maxRoomNum_(DefaultMaxRoomNumber),
+            maxRoomNum_(maxRoomNumber),
             db_(new orm::DB(DBHost, DBPort, DBUserName, DBPassword, DBName))
     {
         db_->AutoMigrate(UserInfo());
 
+        server_.setConnectionCallback(std::bind(&Server::handleDisconnection, this, _1));
         server_.setMessageCallback(std::bind(&Codec::handleMessage, &codec_, _1, _2, _3));
         codec_.registerHandler(MSG_LOGIN,
                                std::bind(&Server::onLogin, this, _1, _2, _3));
@@ -39,7 +40,7 @@ namespace TankTrouble
 
     /*************************************** Message handlers ****************************************/
 
-    void Server::onLogin(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp receiveTime)
+    void Server::onLogin(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp)
     {
         std::string nickname = message.getField<Field<std::string>>("nickname").get();
         UserInfo user;
@@ -56,17 +57,17 @@ namespace TankTrouble
         resp.setField<Field<std::string>>("nickname", onlineUser.nickname_);
         resp.setField<Field<uint32_t>>("score", onlineUser.score_);
         Codec::sendMessage(conn, MSG_LOGIN_RESP, resp);
-        sendRoomInfos(conn->peerAddress().toIpPort());
+        sendRoomsInfo(conn->peerAddress().toIpPort());
     }
 
-    void Server::onCreateRoom(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp receiveTime)
+    void Server::onCreateRoom(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp)
     {
         std::string roomName = message.getField<Field<std::string>>("room_name").get();
         uint8_t roomCap = message.getField<Field<uint8_t>>("player_num").get();
         manager_.createRoom(roomName, roomCap);
     }
 
-    void Server::onJoinRoom(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp receiveTime)
+    void Server::onJoinRoom(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp)
     {
         uint8_t roomId = message.getField<Field<uint8_t>>("join_room_id").get();
         std::string connId = conn->peerAddress().toIpPort();
@@ -77,17 +78,54 @@ namespace TankTrouble
 
     /*********************************** Callbacks for manager *****************************************/
 
-    void Server::updateRoomInfos(Manager::RoomInfoList newInfoList)
+    void Server::roomsInfoBroadcast(Manager::RoomInfoList newInfoList)
     {
         loop_.queueInLoop([this,  l = std::move(newInfoList)] () mutable {
             roomInfos_ = std::move(l);
-            sendRoomInfos();
+            sendRoomsInfo();
+        });
+    }
+
+    void Server::joinRoomRespond(const std::string& connId, uint8_t roomId, Codec::StatusCode code)
+    {
+        loop_.queueInLoop([this, connId, roomId, code] () {
+            Message message = codec_.getEmptyMessage(MSG_JOIN_ROOM_RESP);
+            message.setField<Field<uint8_t>>("join_room_id", roomId);
+            message.setField<Field<uint8_t>>("operation_status", code);
+            if(onlineUsers_.find(connId) != onlineUsers_.end())
+                Codec::sendMessage(onlineUsers_[connId].conn_, MSG_JOIN_ROOM_RESP, message);
+        });
+    }
+
+    void Server::notifyGameOn(std::vector<std::pair<std::string, uint8_t>> playersInfo)
+    {
+        loop_.queueInLoop([this, playersInfo = std::move(playersInfo)] () mutable {
+            Message gameOn = codec_.getEmptyMessage(MSG_GAME_ON);
+            for(const auto& info: playersInfo)
+            {
+                std::string connId = info.first;
+                if(onlineUsers_.find(connId) == onlineUsers_.end())
+                    continue;
+                uint8_t playerId = info.second;
+                std::string nickname = onlineUsers_[connId].nickname_;
+                StructField<uint8_t, std::string> elem("", {"player_id", "player_nickname"});
+                elem.set<uint8_t>("player_id", playerId);
+                elem.set<std::string>("player_nickname", nickname);
+                gameOn.addArrayElement("players_info", elem);
+            }
+            for(const auto& info: playersInfo)
+            {
+                std::string connId = info.first;
+                if(onlineUsers_.find(connId) == onlineUsers_.end())
+                    continue;
+                Codec::sendMessage(onlineUsers_[connId].conn_, MSG_GAME_ON, gameOn);
+            }
         });
     }
 
     /************************************** Server internal *********************************************/
 
-    void Server::sendRoomInfos(const std::string& user)
+    void Server::sendRoomsInfo(const std::string& connId)
     {
         Message message = codec_.getEmptyMessage(MSG_ROOM_INFO);
         for(const GameRoom::RoomInfo& info: roomInfos_)
@@ -101,14 +139,26 @@ namespace TankTrouble
             elem.set<uint8_t>("room_players", info.playerNum_);
             message.addArrayElement("room_infos", elem);
         }
-        if(!user.empty())
+        if(!connId.empty())
         {
-            if(onlineUsers_.find(user) != onlineUsers_.end())
-                Codec::sendMessage(onlineUsers_[user].conn_, MSG_ROOM_INFO, message);
+            if(onlineUsers_.find(connId) != onlineUsers_.end())
+                Codec::sendMessage(onlineUsers_[connId].conn_, MSG_ROOM_INFO, message);
             return;
         }
         for(const auto& entry: onlineUsers_)
             Codec::sendMessage(entry.second.conn_, MSG_ROOM_INFO, message);
+    }
+
+    void Server::handleDisconnection(const muduo::net::TcpConnectionPtr& conn)
+    {
+        if(conn->disconnected())
+        {
+            std::string connId = conn->peerAddress().toIpPort();
+            if(onlineUsers_.find(connId) == onlineUsers_.end())
+                return;
+            onlineUsers_.erase(connId);
+            manager_.quitRoom(connId);
+        }
     }
 
     void Server::serve()
@@ -118,5 +168,5 @@ namespace TankTrouble
         loop_.loop();
     }
 
-    Server::~Server() {delete db_;}
+    Server::~Server() = default;
 }

@@ -7,8 +7,10 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <unordered_map>
 #include <vector>
 #include "GameRoom.h"
+#include "Data.h"
 
 namespace muduo::net {class EventLoop;}
 
@@ -26,11 +28,15 @@ namespace TankTrouble
         void start();
         void createRoom(const std::string& name, int cap);
         void joinRoom(const std::string& connId, uint8_t roomId);
+        void quitRoom(const std::string& connId);
 
     private:
         void manage();
-        void managerCreateRoom(const std::string& name, int cap);
-        void managerJoinRoom(const std::string& connId, uint8_t roomId);
+        void manageCreateRoom(const std::string& name, int cap);
+        void manageJoinRoom(const std::string& connId, uint8_t roomId);
+        void manageQuitRoom(const std::string& connId);
+        void manageGames();
+        void updateRoomsInfo();
 
         Server* server_;
         muduo::net::EventLoop* managerLoop_;
@@ -40,9 +46,11 @@ namespace TankTrouble
         bool started_;
 
         typedef std::unique_ptr<GameRoom> GameRoomPtr;
-        typedef std::vector<GameRoomPtr> GameRoomList;
+        typedef std::unordered_map<uint8_t, GameRoomPtr> GameRoomList;
         GameRoomList rooms_;
         int nextRoomId_;
+        std::unordered_map<std::string, PlayerInfo> playersInfo;
+        std::unordered_map<uint8_t, std::unordered_set<std::string>> connIdsInRoom;
     };
 }
 

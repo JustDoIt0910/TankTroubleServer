@@ -6,7 +6,7 @@
 #include "view/GameArea.h"
 #include "Shell.h"
 #include "util/Math.h"
-#include "util/Id.h"
+#include "util/IdManager.h"
 
 namespace TankTrouble
 {

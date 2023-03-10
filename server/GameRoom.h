@@ -6,6 +6,7 @@
 #define TANK_TROUBLE_SERVER_GAME_ROOM_H
 #include <cstdint>
 #include <string>
+#include "game/util/IdManager.h"
 
 namespace TankTrouble
 {
@@ -29,10 +30,15 @@ namespace TankTrouble
         };
 
         GameRoom(int id, const std::string& name, int cap);
+        uint8_t newPlayer();
+        void playerQuit(uint8_t playerId);
         RoomInfo info();
+        void setStatus(GameRoom::RoomStatus newStatus);
 
     private:
+        util::IdManager idManager;
         RoomInfo roomInfo_;
+        std::unordered_set<uint8_t> playerIds;
     };
 }
 

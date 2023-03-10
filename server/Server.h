@@ -34,15 +34,18 @@ namespace TankTrouble
         void onCreateRoom(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp receiveTime);
         void onJoinRoom(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp receiveTime);
 
-        void updateRoomInfos(Manager::RoomInfoList newInfoList);
-        void sendRoomInfos(const std::string& user = std::string());
+        void roomsInfoBroadcast(Manager::RoomInfoList newInfoList);
+        void joinRoomRespond(const std::string& connId, uint8_t roomId, Codec::StatusCode code);
+        void notifyGameOn(std::vector<std::pair<std::string, uint8_t>> playersInfo);
+        void sendRoomsInfo(const std::string& connId = std::string());
+        void handleDisconnection(const muduo::net::TcpConnectionPtr& conn);
 
         muduo::net::EventLoop loop_;
         muduo::net::TcpServer server_;
         friend class Manager;
         Manager manager_;
         int maxRoomNum_;
-        orm::DB* db_;
+        std::unique_ptr<orm::DB> db_;
         Codec codec_;
         std::unordered_map<std::string, OnlineUser> onlineUsers_;
         Manager::RoomInfoList roomInfos_;
