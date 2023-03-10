@@ -93,6 +93,7 @@ namespace TankTrouble
         rooms_[player.roomId_]->playerQuit(player.playerId_);
         connIdsInRoom[player.roomId_].erase(connId);
         assert(rooms_[player.roomId_]->info().playerNum_ == connIdsInRoom[player.roomId_].size());
+        playersInfo.erase(connId);
         updateRoomsInfo();
     }
 

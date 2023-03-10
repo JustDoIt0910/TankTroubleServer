@@ -43,6 +43,8 @@ namespace TankTrouble
         playerIds.erase(playerId);
         idManager.returnTankId(playerId);
         roomInfo_.playerNum_--;
+        if(roomInfo_.roomStatus_ == Playing)
+            roomInfo_.roomStatus_ = Waiting;
     }
 
     void GameRoom::init()
