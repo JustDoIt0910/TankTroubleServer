@@ -25,10 +25,12 @@ namespace TankTrouble
         ~Manager();
         void start();
         void createRoom(const std::string& name, int cap);
+        void joinRoom(const std::string& connId, uint8_t roomId);
 
     private:
         void manage();
         void managerCreateRoom(const std::string& name, int cap);
+        void managerJoinRoom(const std::string& connId, uint8_t roomId);
 
         Server* server_;
         muduo::net::EventLoop* managerLoop_;

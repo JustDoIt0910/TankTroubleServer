@@ -32,6 +32,7 @@ namespace TankTrouble
     private:
         void onLogin(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp receiveTime);
         void onCreateRoom(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp receiveTime);
+        void onJoinRoom(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp receiveTime);
 
         void updateRoomInfos(Manager::RoomInfoList newInfoList);
         void sendRoomInfos(const std::string& user = std::string());

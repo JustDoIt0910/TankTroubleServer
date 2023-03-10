@@ -25,6 +25,14 @@ namespace TankTrouble
         }
     }
 
+    /************************************ Interfaces for server **************************************/
+
+    void Manager::createRoom(const std::string& name, int cap)
+    {managerLoop_->queueInLoop([this, name, cap] () { managerCreateRoom(name, cap);});}
+
+    void Manager::joinRoom(const std::string& connId, uint8_t roomId)
+    {managerLoop_->queueInLoop([this, connId, roomId] () { managerJoinRoom(connId, roomId);});}
+
     void Manager::start()
     {
         assert(started_ == false);
@@ -33,6 +41,22 @@ namespace TankTrouble
             std::unique_lock<std::mutex> lk(mu_);
             cond_.wait(lk, [this](){return started_;});
         }
+    }
+
+    /***************************************** Internal **********************************************/
+
+    void Manager::managerCreateRoom(const std::string &name, int cap)
+    {
+        rooms_.push_back(std::make_unique<GameRoom>(nextRoomId_++, name, cap));
+        RoomInfoList infos;
+        for(const GameRoomPtr& room: rooms_)
+            infos.push_back(room->info());
+        server_->updateRoomInfos(infos);
+    }
+
+    void Manager::managerJoinRoom(const std::string& connId, uint8_t roomId)
+    {
+
     }
 
     void Manager::manage()
@@ -49,17 +73,5 @@ namespace TankTrouble
             std::unique_lock<std::mutex> lk(mu_);
             managerLoop_ = nullptr;
         }
-    }
-
-    void Manager::createRoom(const std::string& name, int cap)
-    {managerLoop_->queueInLoop([this, name, cap] () { managerCreateRoom(name, cap);});}
-
-    void Manager::managerCreateRoom(const std::string &name, int cap)
-    {
-        rooms_.push_back(std::make_unique<GameRoom>(nextRoomId_++, name, cap));
-        RoomInfoList infos;
-        for(const GameRoomPtr& room: rooms_)
-            infos.push_back(room->info());
-        server_->updateRoomInfos(infos);
     }
 }

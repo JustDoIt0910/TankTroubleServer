@@ -29,9 +29,15 @@ namespace TankTrouble
         db_->AutoMigrate(UserInfo());
 
         server_.setMessageCallback(std::bind(&Codec::handleMessage, &codec_, _1, _2, _3));
-        codec_.registerHandler(MSG_LOGIN, std::bind(&Server::onLogin, this, _1, _2, _3));
-        codec_.registerHandler(MSG_NEW_ROOM, std::bind(&Server::onCreateRoom, this, _1, _2, _3));
+        codec_.registerHandler(MSG_LOGIN,
+                               std::bind(&Server::onLogin, this, _1, _2, _3));
+        codec_.registerHandler(MSG_NEW_ROOM,
+                               std::bind(&Server::onCreateRoom, this, _1, _2, _3));
+        codec_.registerHandler(MSG_JOIN_ROOM,
+                               std::bind(&Server::onJoinRoom, this, _1, _2, _3));
     }
+
+    /*************************************** Message handlers ****************************************/
 
     void Server::onLogin(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp receiveTime)
     {
@@ -60,6 +66,17 @@ namespace TankTrouble
         manager_.createRoom(roomName, roomCap);
     }
 
+    void Server::onJoinRoom(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp receiveTime)
+    {
+        uint8_t roomId = message.getField<Field<uint8_t>>("join_room_id").get();
+        std::string connId = conn->peerAddress().toIpPort();
+        if(onlineUsers_.find(connId) == onlineUsers_.end())
+            return;
+        manager_.joinRoom(connId, roomId);
+    }
+
+    /*********************************** Callbacks for manager *****************************************/
+
     void Server::updateRoomInfos(Manager::RoomInfoList newInfoList)
     {
         loop_.queueInLoop([this,  l = std::move(newInfoList)] () mutable {
@@ -67,6 +84,8 @@ namespace TankTrouble
             sendRoomInfos();
         });
     }
+
+    /************************************** Server internal *********************************************/
 
     void Server::sendRoomInfos(const std::string& user)
     {
