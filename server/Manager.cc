@@ -137,6 +137,9 @@ namespace TankTrouble
                     players.emplace_back(connId, playerId);
                 }
                 server_->notifyGameOn(players);
+                room->init();
+                ServerBlockDataList blocksData = room->getBlocksData();
+                server_->blocksDataBroadcast(connIdsInRoom[info.roomId_], blocksData);
             }
 
         }

@@ -38,6 +38,5 @@ namespace TankTrouble::util
     {
         globalBlockId = initialBlockId;
         globalShellId = initialShellId;
-        usedTankId.clear();
     }
 }

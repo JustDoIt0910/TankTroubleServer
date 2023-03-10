@@ -9,7 +9,14 @@ set(TankTroubleServer_SRC main.cpp
         server/Manager.cc
         server/GameRoom.cc
         protocol/Codec.cc
-        game/util/IdManager.cc)
+        game/util/IdManager.cc
+        game/util/Math.cc
+        game/util/Vec.cc
+        game/Object.cc
+        game/Tank.cc
+        game/Shell.cc
+        game/Block.cc
+        game/Maze.cc)
 
 
 set(SPDLOGD ${CMAKE_SOURCE_DIR}/third_party/tinyorm/mysql4cpp/spdlog/lib)

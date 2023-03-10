@@ -9,20 +9,11 @@
 namespace TankTrouble
 {
     const double Shell::RADIUS = 2.5;
-    Shell::Shell(const util::Vec& p, double angle, int tankId):
-        Object(p, angle, BLACK, util::Id::getShellId()),
+    Shell::Shell(int id, const util::Vec& p, double angle, int tankId):
+        Object(p, angle, id),
         _tankId(tankId),
         _ttl(INITIAL_TTL)
     {movingStatus = MOVING_FORWARD;}
-
-    void Shell::draw(const Cairo::RefPtr<Cairo::Context>& cr)
-    {
-        cr->save();
-        cr->set_source_rgb(color[0], color[1], color[2]);
-        cr->arc(posInfo.pos.x(), posInfo.pos.y(), RADIUS, 0.0, 2 * M_PI);
-        cr->fill();
-        cr->restore();
-    }
 
     Object::PosInfo Shell::getNextPosition(int movingStep, int rotationStep)
     {

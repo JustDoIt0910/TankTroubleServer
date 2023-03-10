@@ -11,12 +11,11 @@ namespace TankTrouble
     class Shell : public Object
     {
     public:
-        Shell(const util::Vec& p, double angle, int tankId);
+        Shell(int id, const util::Vec& p, double angle, int tankId);
         Shell(const Shell& s) = default;
         ~Shell() override = default;
         ObjType type() override;
         [[nodiscard]] int ttl() const;
-        void draw(const Cairo::RefPtr<Cairo::Context>& cr) override;
         PosInfo getNextPosition(int movingStep, int rotationStep) override;
         static PosInfo getNextPosition(const PosInfo& cur, int movingStep, int rotationStep);
         void moveToNextPosition() override;

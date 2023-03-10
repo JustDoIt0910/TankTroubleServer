@@ -37,6 +37,7 @@ namespace TankTrouble
         void roomsInfoBroadcast(Manager::RoomInfoList newInfoList);
         void joinRoomRespond(const std::string& connId, uint8_t roomId, Codec::StatusCode code);
         void notifyGameOn(std::vector<std::pair<std::string, uint8_t>> playersInfo);
+        void blocksDataBroadcast(const std::unordered_set<std::string>& connIds, ServerBlockDataList& data);
         void sendRoomsInfo(const std::string& connId = std::string());
         void handleDisconnection(const muduo::net::TcpConnectionPtr& conn);
 

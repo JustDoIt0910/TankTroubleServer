@@ -5,7 +5,7 @@
 #ifndef TANK_TROUBLE_OBJECT_H
 #define TANK_TROUBLE_OBJECT_H
 #include "util/Vec.h"
-#include <cairomm/context.h>
+#include <stdint.h>
 #include <vector>
 #include <cfloat>
 
@@ -20,10 +20,6 @@ namespace TankTrouble
     enum ObjMovingStep {TANK_MOVING_STEP = 1, SHELL_MOVING_STEP = 1};
     enum ObjType {OBJ_TANK, OBJ_SHELL};
     typedef uint8_t MovingStatus;
-    typedef std::vector<double> Color;
-    const static Color BLACK = {0, 0, 0};
-    const static Color RED = {1.0, 0.3, 0.3};
-    const static Color GREY = {0.3, 0.3, 0.3};
 
     class Object {
     public:
@@ -46,8 +42,7 @@ namespace TankTrouble
             double angle;
         };
 
-        Object(const util::Vec& pos, double angle, const Color& c, int id);
-        virtual void draw(const Cairo::RefPtr<Cairo::Context>& cr) = 0;
+        Object(const util::Vec& pos, double angle, int id);
         virtual PosInfo getNextPosition(int movingStep, int rotationStep) = 0;
         virtual void moveToNextPosition() = 0;
         void resetNextPosition(const PosInfo& next);
@@ -61,7 +56,6 @@ namespace TankTrouble
         PosInfo posInfo;
         PosInfo nextPos;
         MovingStatus movingStatus;
-        Color color;
         int _id;
     };
 }

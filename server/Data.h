@@ -5,6 +5,7 @@
 #ifndef TANK_TROUBLE_SERVER_DATA_H
 #define TANK_TROUBLE_SERVER_DATA_H
 #include <string>
+#include "game/util/Vec.h"
 #include "muduo/net/TcpConnection.h"
 
 namespace TankTrouble
@@ -30,6 +31,24 @@ namespace TankTrouble
         PlayerInfo(uint8_t roomId, uint8_t playerId, uint32_t scoreInGame):
             roomId_(roomId), playerId_(playerId), scoreInGame_(scoreInGame) {}
     };
+
+    struct ServerBlockData
+    {
+        bool horizon_;
+        uint64_t centerX_;
+        uint64_t centerY_;
+
+        ServerBlockData(bool horizon, util::Vec center):
+            horizon_(horizon), centerX_(0), centerY_(0)
+        {
+            double x = center.x();
+            double y = center.y();
+            memcpy(&centerX_, &x, sizeof(double));
+            memcpy(&centerY_, &y, sizeof(double));
+        }
+    };
+
+    typedef std::vector<ServerBlockData> ServerBlockDataList;
 }
 
 #endif //TANK_TROUBLE_SERVER_DATA_H

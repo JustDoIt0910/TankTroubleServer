@@ -6,7 +6,23 @@
 #define TANK_TROUBLE_SERVER_GAME_ROOM_H
 #include <cstdint>
 #include <string>
+#include <memory>
+#include <unordered_map>
 #include "game/util/IdManager.h"
+#include "game/Object.h"
+#include "game/Block.h"
+#include "game/defs.h"
+#include "game/Maze.h"
+#include "Data.h"
+
+#define UPWARDS             0
+#define UPWARDS_LEFT        1
+#define LEFT                2
+#define DOWNWARDS_LEFT      3
+#define DOWNWARDS           4
+#define DOWNWARDS_RIGHT     5
+#define RIGHT               6
+#define UPWARDS_RIGHT       7
 
 namespace TankTrouble
 {
@@ -32,13 +48,39 @@ namespace TankTrouble
         GameRoom(int id, const std::string& name, int cap);
         uint8_t newPlayer();
         void playerQuit(uint8_t playerId);
+
+        void init();
         RoomInfo info();
+        ServerBlockDataList getBlocksData();
         void setStatus(GameRoom::RoomStatus newStatus);
 
     private:
         util::IdManager idManager;
         RoomInfo roomInfo_;
         std::unordered_set<uint8_t> playerIds;
+
+        // for game logics
+        typedef std::unique_ptr<Object> ObjectPtr;
+        typedef std::unordered_map<int, ObjectPtr> ObjectList;
+        typedef std::unordered_map<int, Block> BlockList;
+
+        void initBlocks();
+        struct PairHash
+        {
+            template<typename T1, typename T2>
+            size_t operator()(const std::pair<T1, T2>& p) const
+            {
+                return std::hash<T1>()(p.first) ^ std::hash<T2>()(p.second);
+            }
+        };
+        static std::vector<Object::PosInfo> getRandomPositions(int num);
+
+        Maze maze;
+        ObjectList objects;
+        BlockList blocks;
+        std::vector<int> deletedObjs;
+        std::vector<int> shellPossibleCollisionBlocks[HORIZON_GRID_NUMBER][VERTICAL_GRID_NUMBER][8];
+        std::vector<int> tankPossibleCollisionBlocks[HORIZON_GRID_NUMBER][VERTICAL_GRID_NUMBER];
     };
 }
 

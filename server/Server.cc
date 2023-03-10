@@ -123,6 +123,31 @@ namespace TankTrouble
         });
     }
 
+    void Server::blocksDataBroadcast(const std::unordered_set<std::string>& connIds,
+                                     ServerBlockDataList& data)
+    {
+        loop_.queueInLoop([this, connIds, data = std::move(data)] () {
+            Message blockUpdate = codec_.getEmptyMessage(MSG_UPDATE_BLOCKS);
+            for(const ServerBlockData& blockData: data)
+            {
+                StructField<uint8_t, uint64_t, uint64_t> elem("", {
+                    "is_horizon", "center_x", "center_y"
+                });
+                elem.set<uint8_t>("is_horizon", blockData.horizon_ ? 1 : 0);
+                elem.set<uint64_t>("center_x", blockData.centerX_);
+                elem.set<uint64_t>("center_y", blockData.centerY_);
+                blockUpdate.addArrayElement("blocks", elem);
+            }
+            for(const std::string& connId: connIds)
+            {
+                if(onlineUsers_.find(connId) == onlineUsers_.end())
+                    continue;
+                Codec::sendMessage(onlineUsers_[connId].conn_,
+                                   MSG_UPDATE_BLOCKS, blockUpdate);
+            }
+        });
+    }
+
     /************************************** Server internal *********************************************/
 
     void Server::sendRoomsInfo(const std::string& connId)

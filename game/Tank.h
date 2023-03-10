@@ -13,9 +13,8 @@ namespace TankTrouble
 
     class Tank : public Object {
     public:
-        Tank(const util::Vec&, double, const Color& color);
+        Tank(int id, const util::Vec&, double);
         Tank(const Tank& t) = default;
-        void draw(const Cairo::RefPtr<Cairo::Context>& cr) override;
         PosInfo getNextPosition(int movingStep, int rotationStep) override;
         static PosInfo getNextPosition(const PosInfo& cur, int movingStatus, int movingStep, int rotationStep);
         void moveToNextPosition() override;
@@ -30,7 +29,7 @@ namespace TankTrouble
         bool isRotatingCCW();
         ObjType type() override;
         [[nodiscard]] int remainShells() const;
-        [[nodiscard]] Shell* makeShell();
+        [[nodiscard]] Shell* makeShell(int id);
         void getRemainShell();
         ~Tank() override = default;
 

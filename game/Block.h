@@ -6,7 +6,6 @@
 #define TANK_TROUBLE_BLOCK_H
 #include "util/Vec.h"
 #include <utility>
-#include <cairomm/context.h>
 
 namespace TankTrouble
 {
@@ -15,7 +14,6 @@ namespace TankTrouble
     public:
         Block() = default;
         Block(int id, const util::Vec& start, const util::Vec& end);
-        void draw(const Cairo::RefPtr<Cairo::Context>& cr);
         [[nodiscard]] bool isHorizon() const;
         [[nodiscard]] util::Vec center() const;
         [[nodiscard]] int height() const;

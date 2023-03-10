@@ -3,7 +3,6 @@
 //
 
 #include "Block.h"
-#include "view/GameArea.h"
 #include "Shell.h"
 #include <cassert>
 
@@ -53,14 +52,6 @@ namespace TankTrouble
         _border[1] = std::make_pair(bbl, bbr);
         _border[2] = std::make_pair(btl, bbl);
         _border[3] = std::make_pair(btr, bbr);
-    }
-
-    void Block::draw(const Cairo::RefPtr<Cairo::Context>& cr)
-    {
-        cr->save();
-        GameArea::drawRect(cr, BLACK, tl, tr, bl, br);
-        cr->set_line_width(1.0);
-        cr->restore();
     }
 
     bool Block::isHorizon() const {return horizon;}

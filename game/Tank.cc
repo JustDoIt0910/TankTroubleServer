@@ -3,15 +3,14 @@
 //
 
 #include "Tank.h"
-#include "view/GameArea.h"
 #include "Shell.h"
 #include "util/Math.h"
 #include "util/IdManager.h"
 
 namespace TankTrouble
 {
-    Tank::Tank(const util::Vec& p, double angle, const Color& c):
-        Object(p, angle, c, util::Id::getTankId()),
+    Tank::Tank(int id, const util::Vec& p, double angle):
+        Object(p, angle, id),
         remainBullets(5)
     {
         recalculate();
@@ -78,25 +77,6 @@ namespace TankTrouble
 
     bool Tank::isRotatingCCW() {return movingStatus & ROTATING_CCW;}
 
-    void Tank::draw(const Cairo::RefPtr<Cairo::Context>& cr)
-    {
-        cr->save();
-        GameArea::drawRect(cr, color, topLeft, topRight, bottomLeft, bottomRight);
-        cr->close_path();
-        cr->fill();
-
-        cr->set_source_rgb(color[0] - 0.3, color[1] - 0.3, color[2] - 0.3);
-        cr->arc(posInfo.pos.x(), posInfo.pos.y(), 9, 0.0, 2 * M_PI);
-        cr->fill();
-
-        cr->set_line_width(9.0);
-        cr->move_to(posInfo.pos.x(), posInfo.pos.y());
-        util::Vec to = util::polar2Cart(posInfo.angle, 17, posInfo.pos);
-        cr->line_to(to.x(), to.y());
-        cr->stroke();
-        cr->restore();
-    }
-
     Object::PosInfo Tank::getNextPosition(int movingStep, int rotationStep)
     {
         Object::PosInfo next = getNextPosition(posInfo, movingStatus, movingStep, rotationStep);
@@ -132,11 +112,11 @@ namespace TankTrouble
 
     int Tank::remainShells() const {return remainBullets;}
 
-    Shell* Tank::makeShell()
+    Shell* Tank::makeShell(int id)
     {
         remainBullets--;
         util::Vec shellPos = util::polar2Cart(posInfo.angle, 15, posInfo.pos);
-        return new Shell(shellPos, posInfo.angle, _id);
+        return new Shell(id, shellPos, posInfo.angle, _id);
     }
 
     void Tank::getRemainShell() {remainBullets++;}
