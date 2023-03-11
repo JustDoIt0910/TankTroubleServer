@@ -141,14 +141,14 @@ namespace TankTrouble
                 {
                     if((id != shell->tankId() || shell->ttl() < Shell::INITIAL_TTL))
                     {
-                        deletedObjs.push_back(id);
-                        deletedObjs.push_back(shell->id());
+                        deletedObjs.insert(id);
+                        deletedObjs.insert(shell->id());
                         survivors--;
                     }
                 }
                 if(countdown && shell->countDown() <= 0)
                 {
-                    deletedObjs.push_back(shell->id());
+                    deletedObjs.insert(shell->id());
                     if(objects.find(shell->tankId()) != objects.end())
                         dynamic_cast<Tank*>(objects[shell->tankId()].get())->getRemainShell();
                 }
@@ -159,7 +159,7 @@ namespace TankTrouble
                 int id = checkTankBlockCollision(cur, next);
                 if(id)
                     obj->resetNextPosition(cur);
-                if(survivors == 1 && !hasWinner)
+                if(survivors == 1 && !hasWinner && deletedObjs.find(tank->id()) == deletedObjs.end())
                 {
                     hasWinner = true;
                     restartNeeded = true;

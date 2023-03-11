@@ -143,6 +143,8 @@ namespace TankTrouble
     {
         managerLoop->runAfter(2.0, [this, roomId] () {
             rooms[roomId]->init();
+            ServerBlockDataList blocksData = rooms[roomId]->getBlocksData();
+            server->blocksDataBroadcast(connIdsInRoom[roomId], std::move(blocksData));
         });
     }
 
@@ -179,6 +181,8 @@ namespace TankTrouble
                 if(room->needRestart())
                 {
                     restartRoom(room->info().roomId_);
+                    auto scores = room->getPlayersScore();
+                    server->playersScoreBroadcast(connIdsInRoom[info.roomId_], std::move(scores));
                 }
             }
         }

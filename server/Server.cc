@@ -195,6 +195,28 @@ namespace TankTrouble
         });
     }
 
+    void Server::playersScoreBroadcast(const std::unordered_set<std::string>& connIds,
+                               std::unordered_map<uint8_t, uint32_t> scores)
+    {
+        loop_.queueInLoop([this, connIds, scores = std::move(scores)] {
+            Message scoresUpdate = codec_.getEmptyMessage(MSG_UPDATE_SCORES);
+            for(const auto& entry: scores)
+            {
+                StructField<uint8_t, uint32_t> elem("", {"player_id", "score"});
+                elem.set<uint8_t>("player_id", entry.first);
+                elem.set<uint32_t>("score", entry.second);
+                scoresUpdate.addArrayElement("scores", elem);
+            }
+            for(const std::string& connId: connIds)
+            {
+                if(onlineUsers_.find(connId) == onlineUsers_.end())
+                    continue;
+                Codec::sendMessage(onlineUsers_[connId].conn_,
+                                   MSG_UPDATE_SCORES, scoresUpdate);
+            }
+        });
+    }
+
     /************************************** Server internal *********************************************/
 
     void Server::sendRoomsInfo(const std::string& connId)

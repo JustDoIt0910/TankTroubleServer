@@ -40,6 +40,8 @@ namespace TankTrouble
         void notifyGameOn(std::vector<std::pair<std::string, uint8_t>> playersInfo);
         void blocksDataBroadcast(const std::unordered_set<std::string>& connIds, ServerBlockDataList data);
         void objectsDataBroadcast(const std::unordered_set<std::string>& connIds, ServerObjectsData data);
+        void playersScoreBroadcast(const std::unordered_set<std::string>& connIds,
+                                   std::unordered_map<uint8_t, uint32_t> scores);
         void sendRoomsInfo(const std::string& connId = std::string());
         void handleDisconnection(const muduo::net::TcpConnectionPtr& conn);
 

@@ -59,7 +59,7 @@ namespace TankTrouble
         });
 
         messages_[MSG_UPDATE_SCORES] = MessageTemplate({
-            new ArrayFieldTemplate<StructField<uint8_t, uint32_t>>("scores" {
+            new ArrayFieldTemplate<StructField<uint8_t, uint32_t>>("scores", {
                 "player_id", "score"
             })
         });

@@ -93,7 +93,7 @@ namespace TankTrouble
         Maze maze;
         ObjectList objects;
         BlockList blocks;
-        std::vector<int> deletedObjs;
+        std::unordered_set<int> deletedObjs;
         std::vector<int> shellPossibleCollisionBlocks[HORIZON_GRID_NUMBER][VERTICAL_GRID_NUMBER][8];
         std::vector<int> tankPossibleCollisionBlocks[HORIZON_GRID_NUMBER][VERTICAL_GRID_NUMBER];
         int survivors;
