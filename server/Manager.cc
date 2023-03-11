@@ -36,6 +36,13 @@ namespace TankTrouble
     void Manager::quitRoom(const std::string &connId)
     {managerLoop_->queueInLoop([this, connId] () { manageQuitRoom(connId);});}
 
+    void Manager::control(const std::string& connId, int action, bool enable)
+    {
+        managerLoop_->queueInLoop([this, connId, action, enable] () {
+            manageControl(connId, action, enable);
+        });
+    }
+
     void Manager::start()
     {
         assert(started_ == false);
@@ -97,6 +104,16 @@ namespace TankTrouble
         updateRoomsInfo();
     }
 
+    void Manager::manageControl(const std::string& connId, int action, bool enable)
+    {
+        if(playersInfo.find(connId) == playersInfo.end())
+            return;
+        PlayerInfo player = playersInfo[connId];
+        if(rooms_.find(player.roomId_) == rooms_.end())
+            return;
+        rooms_[player.roomId_]->control(player.playerId_, action, enable);
+    }
+
     void Manager::manage()
     {
         muduo::net::EventLoop loop;
@@ -149,6 +166,7 @@ namespace TankTrouble
                     // TODO notify game off
                     continue;
                 }
+                room->moveAll();
                 ServerObjectsData objectsData = room->getObjectsData();
                 server_->objectsDataBroadcast(connIdsInRoom[info.roomId_], std::move(objectsData));
             }

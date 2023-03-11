@@ -21,7 +21,7 @@ namespace TankTrouble
     const std::string Server::DBName = "tank_trouble";
 
     Server::Server(uint16_t port, int maxRoomNumber):
-            server_(&loop_, muduo::net::InetAddress(port, true), "TankTroubleServer"),
+            server_(&loop_, muduo::net::InetAddress(port), "TankTroubleServer"),
             manager_(this),
             maxRoomNum_(maxRoomNumber),
             db_(new orm::DB(DBHost, DBPort, DBUserName, DBPassword, DBName))
@@ -36,12 +36,15 @@ namespace TankTrouble
                                std::bind(&Server::onCreateRoom, this, _1, _2, _3));
         codec_.registerHandler(MSG_JOIN_ROOM,
                                std::bind(&Server::onJoinRoom, this, _1, _2, _3));
+        codec_.registerHandler(MSG_CONTROL,
+                               std::bind(&Server::onControlMessage, this, _1, _2, _3));
     }
 
     /*************************************** Message handlers ****************************************/
 
     void Server::onLogin(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp)
     {
+        conn->setTcpNoDelay(true);
         std::string nickname = message.getField<Field<std::string>>("nickname").get();
         UserInfo user;
         if(db_->model<UserInfo>().Where("nickname = ?", nickname).First(user) < 1)
@@ -69,11 +72,21 @@ namespace TankTrouble
 
     void Server::onJoinRoom(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp)
     {
-        uint8_t roomId = message.getField<Field<uint8_t>>("join_room_id").get();
         std::string connId = conn->peerAddress().toIpPort();
         if(onlineUsers_.find(connId) == onlineUsers_.end())
             return;
+        uint8_t roomId = message.getField<Field<uint8_t>>("join_room_id").get();
         manager_.joinRoom(connId, roomId);
+    }
+
+    void Server::onControlMessage(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp)
+    {
+        std::string connId = conn->peerAddress().toIpPort();
+        if(onlineUsers_.find(connId) == onlineUsers_.end())
+            return;
+        auto action = message.getField<Field<uint8_t>>("action").get();
+        bool enable = message.getField<Field<uint8_t>>("enable").get() == 1;
+        manager_.control(connId, action, enable);
     }
 
     /*********************************** Callbacks for manager *****************************************/
@@ -168,8 +181,8 @@ namespace TankTrouble
                 StructField<uint64_t, uint64_t> elem("", {
                         "x", "y"
                 });
-                elem.set<uint64_t>("center_x", shell.x_);
-                elem.set<uint64_t>("center_y", shell.y_);
+                elem.set<uint64_t>("x", shell.x_);
+                elem.set<uint64_t>("y", shell.y_);
                 objectsUpdate.addArrayElement("shells", elem);
             }
             for(const std::string& connId: connIds)

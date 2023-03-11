@@ -26,9 +26,13 @@
 
 namespace TankTrouble
 {
+    class Tank;
+
     class GameRoom
     {
     public:
+        enum Action{Forward, Backward, RotateCW, RotateCCW, Fire};
+
         enum RoomStatus {New, Waiting, Playing};
         struct RoomInfo
         {
@@ -53,7 +57,9 @@ namespace TankTrouble
         RoomInfo info() const;
         ServerBlockDataList getBlocksData() const;
         ServerObjectsData getObjectsData() const;
+        void control(int playerId, int action, bool enable);
         void setStatus(GameRoom::RoomStatus newStatus);
+        void moveAll();
 
     private:
         util::IdManager idManager;
@@ -75,6 +81,12 @@ namespace TankTrouble
             }
         };
         static std::vector<Object::PosInfo> getRandomPositions(int num);
+        void fire(Tank* tank);
+        int checkShellTankCollision(const Object::PosInfo& curPos, const Object::PosInfo& nextPos);
+        int checkShellBlockCollision(const Object::PosInfo& curPos, const Object::PosInfo& nextPos);
+        int checkShellCollision(const Object::PosInfo& curPos, const Object::PosInfo& nextPos);
+        int checkTankBlockCollision(const Object::PosInfo& curPos, const Object::PosInfo& nextPos);
+        Object::PosInfo getBouncedPosition(const Object::PosInfo& cur, const Object::PosInfo& next, int blockId);
 
         Maze maze;
         ObjectList objects;

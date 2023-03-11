@@ -29,12 +29,14 @@ namespace TankTrouble
         void createRoom(const std::string& name, int cap);
         void joinRoom(const std::string& connId, uint8_t roomId);
         void quitRoom(const std::string& connId);
+        void control(const std::string& connId, int action, bool enable);
 
     private:
         void manage();
         void manageCreateRoom(const std::string& name, int cap);
         void manageJoinRoom(const std::string& connId, uint8_t roomId);
         void manageQuitRoom(const std::string& connId);
+        void manageControl(const std::string& connId, int action, bool enable);
         void manageGames();
         void updateRoomsInfo();
 
