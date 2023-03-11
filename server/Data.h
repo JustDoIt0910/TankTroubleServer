@@ -26,11 +26,10 @@ namespace TankTrouble
     {
         uint8_t roomId_;
         uint8_t playerId_;
-        uint32_t scoreInGame_;
 
-        PlayerInfo(): roomId_(0), playerId_(0), scoreInGame_(0) {}
-        PlayerInfo(uint8_t roomId, uint8_t playerId, uint32_t scoreInGame):
-            roomId_(roomId), playerId_(playerId), scoreInGame_(scoreInGame) {}
+        PlayerInfo(): roomId_(0), playerId_(0) {}
+        PlayerInfo(uint8_t roomId, uint8_t playerId):
+            roomId_(roomId), playerId_(playerId) {}
     };
 
     struct ServerBlockData

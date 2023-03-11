@@ -57,14 +57,16 @@ namespace TankTrouble
         RoomInfo info() const;
         ServerBlockDataList getBlocksData() const;
         ServerObjectsData getObjectsData() const;
+        std::unordered_map<uint8_t, uint32_t> getPlayersScore() const;
         void control(int playerId, int action, bool enable);
         void setStatus(GameRoom::RoomStatus newStatus);
         void moveAll();
+        bool needRestart();
 
     private:
         util::IdManager idManager;
-        RoomInfo roomInfo_;
-        std::unordered_set<uint8_t> playerIds;
+        RoomInfo roomInfo;
+        std::unordered_map<uint8_t, uint32_t> players;
 
         // for game logics
         typedef std::unique_ptr<Object> ObjectPtr;
@@ -94,6 +96,9 @@ namespace TankTrouble
         std::vector<int> deletedObjs;
         std::vector<int> shellPossibleCollisionBlocks[HORIZON_GRID_NUMBER][VERTICAL_GRID_NUMBER][8];
         std::vector<int> tankPossibleCollisionBlocks[HORIZON_GRID_NUMBER][VERTICAL_GRID_NUMBER];
+        int survivors;
+        bool hasWinner;
+        bool restartNeeded;
     };
 }
 

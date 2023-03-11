@@ -39,18 +39,19 @@ namespace TankTrouble
         void manageControl(const std::string& connId, int action, bool enable);
         void manageGames();
         void updateRoomsInfo();
+        void restartRoom(int roomId);
 
-        Server* server_;
-        muduo::net::EventLoop* managerLoop_;
-        std::thread managerThread_;
-        std::mutex mu_;
-        std::condition_variable cond_;
-        bool started_;
+        Server* server;
+        muduo::net::EventLoop* managerLoop;
+        std::thread managerThread;
+        std::mutex mu;
+        std::condition_variable cond;
+        bool started;
 
         typedef std::unique_ptr<GameRoom> GameRoomPtr;
         typedef std::unordered_map<uint8_t, GameRoomPtr> GameRoomList;
-        GameRoomList rooms_;
-        int nextRoomId_;
+        GameRoomList rooms;
+        int nextRoomId;
         std::unordered_map<std::string, PlayerInfo> playersInfo;
         std::unordered_map<uint8_t, std::unordered_set<std::string>> connIdsInRoom;
     };

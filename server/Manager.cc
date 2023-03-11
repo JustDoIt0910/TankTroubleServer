@@ -11,45 +11,45 @@
 namespace TankTrouble
 {
     Manager::Manager(Server* server):
-        server_(server),
-        managerLoop_(nullptr),
-        started_(false),
-        nextRoomId_(1) {}
+        server(server),
+        managerLoop(nullptr),
+        started(false),
+        nextRoomId(1) {}
 
     Manager::~Manager()
     {
-        if(started_)
+        if(started)
         {
-            managerLoop_->quit();
-            managerThread_.join();
+            managerLoop->quit();
+            managerThread.join();
         }
     }
 
     /************************************ Interfaces for server **************************************/
 
     void Manager::createRoom(const std::string& name, int cap)
-    {managerLoop_->queueInLoop([this, name, cap] () { manageCreateRoom(name, cap);});}
+    {managerLoop->queueInLoop([this, name, cap] () { manageCreateRoom(name, cap);});}
 
     void Manager::joinRoom(const std::string& connId, uint8_t roomId)
-    {managerLoop_->queueInLoop([this, connId, roomId] () { manageJoinRoom(connId, roomId);});}
+    {managerLoop->queueInLoop([this, connId, roomId] () { manageJoinRoom(connId, roomId);});}
 
     void Manager::quitRoom(const std::string &connId)
-    {managerLoop_->queueInLoop([this, connId] () { manageQuitRoom(connId);});}
+    {managerLoop->queueInLoop([this, connId] () { manageQuitRoom(connId);});}
 
     void Manager::control(const std::string& connId, int action, bool enable)
     {
-        managerLoop_->queueInLoop([this, connId, action, enable] () {
+        managerLoop->queueInLoop([this, connId, action, enable] () {
             manageControl(connId, action, enable);
         });
     }
 
     void Manager::start()
     {
-        assert(started_ == false);
-        managerThread_ = std::thread([this] () {manage();});
+        assert(started == false);
+        managerThread = std::thread([this] () {manage();});
         {
-            std::unique_lock<std::mutex> lk(mu_);
-            cond_.wait(lk, [this](){return started_;});
+            std::unique_lock<std::mutex> lk(mu);
+            cond.wait(lk, [this](){return started;});
         }
     }
 
@@ -57,36 +57,36 @@ namespace TankTrouble
 
     void Manager::manageCreateRoom(const std::string &name, int cap)
     {
-        managerLoop_->assertInLoopThread();
-        auto newRoom = std::make_unique<GameRoom>(nextRoomId_++, name, cap);
-        rooms_[newRoom->info().roomId_] = std::move(newRoom);
+        managerLoop->assertInLoopThread();
+        auto newRoom = std::make_unique<GameRoom>(nextRoomId++, name, cap);
+        rooms[newRoom->info().roomId_] = std::move(newRoom);
         updateRoomsInfo();
     }
 
     void Manager::manageJoinRoom(const std::string& connId, uint8_t roomId)
     {
-        managerLoop_->assertInLoopThread();
+        managerLoop->assertInLoopThread();
         if(playersInfo.find(connId) != playersInfo.end())
         {
-            server_->joinRoomRespond(connId, roomId, Codec::ERR_IS_IN_ROOM);
+            server->joinRoomRespond(connId, roomId, Codec::ERR_IS_IN_ROOM);
             return;
         }
-        if(rooms_.find(roomId) == rooms_.end())
+        if(rooms.find(roomId) == rooms.end())
         {
-            server_->joinRoomRespond(connId, roomId, Codec::ERR_ROOM_NOT_EXIST);
+            server->joinRoomRespond(connId, roomId, Codec::ERR_ROOM_NOT_EXIST);
             return;
         }
-        if(rooms_[roomId]->info().roomStatus_ == GameRoom::Playing ||
-            rooms_[roomId]->info().playerNum_ == rooms_[roomId]->info().roomCap_)
+        if(rooms[roomId]->info().roomStatus_ == GameRoom::Playing ||
+            rooms[roomId]->info().playerNum_ == rooms[roomId]->info().roomCap_)
         {
-            server_->joinRoomRespond(connId, roomId, Codec::ERR_ROOM_FULL);
+            server->joinRoomRespond(connId, roomId, Codec::ERR_ROOM_FULL);
             return;
         }
-        uint8_t playerId = rooms_[roomId]->newPlayer();
-        playersInfo[connId] = PlayerInfo(roomId, playerId, 0);
+        uint8_t playerId = rooms[roomId]->newPlayer();
+        playersInfo[connId] = PlayerInfo(roomId, playerId);
         connIdsInRoom[roomId].insert(connId);
-        assert(rooms_[roomId]->info().playerNum_ == connIdsInRoom[roomId].size());
-        server_->joinRoomRespond(connId, roomId, Codec::JOIN_ROOM_SUCCESS);
+        assert(rooms[roomId]->info().playerNum_ == connIdsInRoom[roomId].size());
+        server->joinRoomRespond(connId, roomId, Codec::JOIN_ROOM_SUCCESS);
         updateRoomsInfo();
     }
 
@@ -95,11 +95,11 @@ namespace TankTrouble
         if(playersInfo.find(connId) == playersInfo.end())
             return;
         PlayerInfo player = playersInfo[connId];
-        if(rooms_.find(player.roomId_) == rooms_.end())
+        if(rooms.find(player.roomId_) == rooms.end())
             return;
-        rooms_[player.roomId_]->playerQuit(player.playerId_);
+        rooms[player.roomId_]->playerQuit(player.playerId_);
         connIdsInRoom[player.roomId_].erase(connId);
-        assert(rooms_[player.roomId_]->info().playerNum_ == connIdsInRoom[player.roomId_].size());
+        assert(rooms[player.roomId_]->info().playerNum_ == connIdsInRoom[player.roomId_].size());
         playersInfo.erase(connId);
         updateRoomsInfo();
     }
@@ -109,39 +109,46 @@ namespace TankTrouble
         if(playersInfo.find(connId) == playersInfo.end())
             return;
         PlayerInfo player = playersInfo[connId];
-        if(rooms_.find(player.roomId_) == rooms_.end())
+        if(rooms.find(player.roomId_) == rooms.end())
             return;
-        rooms_[player.roomId_]->control(player.playerId_, action, enable);
+        rooms[player.roomId_]->control(player.playerId_, action, enable);
     }
 
     void Manager::manage()
     {
         muduo::net::EventLoop loop;
         {
-            std::unique_lock<std::mutex> lk(mu_);
-            managerLoop_ = &loop;
-            started_ = true;
-            cond_.notify_all();
+            std::unique_lock<std::mutex> lk(mu);
+            managerLoop = &loop;
+            started = true;
+            cond.notify_all();
         }
         loop.runEvery(0.01, [this] () {manageGames();});
         loop.loop();
         {
-            std::unique_lock<std::mutex> lk(mu_);
-            managerLoop_ = nullptr;
+            std::unique_lock<std::mutex> lk(mu);
+            managerLoop = nullptr;
         }
     }
 
     void Manager::updateRoomsInfo()
     {
         RoomInfoList infos;
-        for(const auto& room: rooms_)
+        for(const auto& room: rooms)
             infos.push_back(room.second->info());
-        server_->roomsInfoBroadcast(infos);
+        server->roomsInfoBroadcast(infos);
+    }
+
+    void Manager::restartRoom(int roomId)
+    {
+        managerLoop->runAfter(2.0, [this, roomId] () {
+            rooms[roomId]->init();
+        });
     }
 
     void Manager::manageGames()
     {
-        for(auto& entry: rooms_)
+        for(auto& entry: rooms)
         {
             GameRoomPtr& room = entry.second;
             GameRoom::RoomInfo info = room->info();
@@ -154,10 +161,10 @@ namespace TankTrouble
                     uint8_t playerId = playersInfo[connId].playerId_;
                     players.emplace_back(connId, playerId);
                 }
-                server_->notifyGameOn(players);
+                server->notifyGameOn(players);
                 room->init();
                 ServerBlockDataList blocksData = room->getBlocksData();
-                server_->blocksDataBroadcast(connIdsInRoom[info.roomId_], std::move(blocksData));
+                server->blocksDataBroadcast(connIdsInRoom[info.roomId_], std::move(blocksData));
             }
             else if(info.roomStatus_ == GameRoom::Playing)
             {
@@ -168,7 +175,11 @@ namespace TankTrouble
                 }
                 room->moveAll();
                 ServerObjectsData objectsData = room->getObjectsData();
-                server_->objectsDataBroadcast(connIdsInRoom[info.roomId_], std::move(objectsData));
+                server->objectsDataBroadcast(connIdsInRoom[info.roomId_], std::move(objectsData));
+                if(room->needRestart())
+                {
+                    restartRoom(room->info().roomId_);
+                }
             }
         }
     }

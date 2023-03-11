@@ -18,11 +18,14 @@ namespace TankTrouble
                                        static_cast<double>(GAME_VIEW_HEIGHT) / 2);
 
     GameRoom::GameRoom(int id, const std::string& name, int cap):
-            roomInfo_(id, name, cap, 0, New) {}
+            roomInfo(id, name, cap, 0, New),
+            survivors(0),
+            hasWinner(false),
+            restartNeeded(false) {}
 
     /******************************* interfaces for manager ***********************************/
 
-    GameRoom::RoomInfo GameRoom::info() const {return roomInfo_;}
+    GameRoom::RoomInfo GameRoom::info() const {return roomInfo;}
 
     ServerBlockDataList GameRoom::getBlocksData() const
     {
@@ -50,6 +53,8 @@ namespace TankTrouble
         return std::move(data);
     }
 
+    std::unordered_map<uint8_t, uint32_t> GameRoom::getPlayersScore() const {return players;}
+
     void GameRoom::control(int playerId, int action, bool enable)
     {
         if(objects.find(playerId) == objects.end() || objects[playerId]->type() != OBJ_TANK)
@@ -66,24 +71,52 @@ namespace TankTrouble
         }
     }
 
-    void GameRoom::setStatus(GameRoom::RoomStatus newStatus) {roomInfo_.roomStatus_ = newStatus;}
+    void GameRoom::setStatus(GameRoom::RoomStatus newStatus) {roomInfo.roomStatus_ = newStatus;}
 
     uint8_t GameRoom::newPlayer()
     {
-        assert(roomInfo_.roomStatus_ != Playing && roomInfo_.playerNum_ < roomInfo_.roomCap_);
+        assert(roomInfo.roomStatus_ != Playing && roomInfo.playerNum_ < roomInfo.roomCap_);
         uint8_t playerId = idManager.getTankId();
-        playerIds.insert(playerId);
-        roomInfo_.playerNum_++;
-        if(roomInfo_.roomStatus_ == New)
-            roomInfo_.roomStatus_ = Waiting;
+        players[playerId] = 0;
+        roomInfo.playerNum_++;
+        if(roomInfo.roomStatus_ == New)
+            roomInfo.roomStatus_ = Waiting;
         return playerId;
     }
 
     void GameRoom::playerQuit(uint8_t playerId)
     {
-        playerIds.erase(playerId);
+        players.erase(playerId);
         idManager.returnTankId(playerId);
-        roomInfo_.playerNum_--;
+        roomInfo.playerNum_--;
+    }
+
+    void GameRoom::init()
+    {
+        idManager.reset();
+        objects.clear();
+        blocks.clear();
+        deletedObjs.clear();
+        for(int i = 0; i < HORIZON_GRID_NUMBER; i++)
+            for(int j = 0; j < VERTICAL_GRID_NUMBER; j++)
+            {
+                tankPossibleCollisionBlocks[i][j].clear();
+                for(int k = 0; k < 8; k++)
+                    shellPossibleCollisionBlocks[i][j][k].clear();
+            }
+        initBlocks();
+        std::vector<Object::PosInfo> playerPositions = getRandomPositions(
+                static_cast<int>(players.size()));
+        int i = 0;
+        for(const auto& player: players)
+        {
+            std::unique_ptr<Object> tank(
+                    new Tank(player.first, playerPositions[i].pos, playerPositions[i].angle));
+            objects[tank->id()] = std::move(tank);
+            i++;
+        }
+        survivors = static_cast<int>(players.size());
+        hasWinner = false;
     }
 
     void GameRoom::moveAll()
@@ -110,8 +143,7 @@ namespace TankTrouble
                     {
                         deletedObjs.push_back(id);
                         deletedObjs.push_back(shell->id());
-                        // TODO restart game
-                        break;
+                        survivors--;
                     }
                 }
                 if(countdown && shell->countDown() <= 0)
@@ -127,11 +159,24 @@ namespace TankTrouble
                 int id = checkTankBlockCollision(cur, next);
                 if(id)
                     obj->resetNextPosition(cur);
+                if(survivors == 1 && !hasWinner)
+                {
+                    hasWinner = true;
+                    restartNeeded = true;
+                    players[tank->id()]++;
+                }
             }
             obj->moveToNextPosition();
         }
         for(int id: deletedObjs)
             objects.erase(id);
+    }
+
+    bool GameRoom::needRestart()
+    {
+        bool val = restartNeeded;
+        restartNeeded = false;
+        return val;
     }
 
     /************************************* internal ***************************************/
@@ -342,32 +387,6 @@ namespace TankTrouble
                 bounced.angle = util::angleFlipY(cur.angle);
         }
         return bounced;
-    }
-
-    void GameRoom::init()
-    {
-        idManager.reset();
-        objects.clear();
-        blocks.clear();
-        deletedObjs.clear();
-        for(int i = 0; i < HORIZON_GRID_NUMBER; i++)
-            for(int j = 0; j < VERTICAL_GRID_NUMBER; j++)
-            {
-                tankPossibleCollisionBlocks[i][j].clear();
-                for(int k = 0; k < 8; k++)
-                    shellPossibleCollisionBlocks[i][j][k].clear();
-            }
-        initBlocks();
-        std::vector<Object::PosInfo> playerPositions = getRandomPositions(
-                static_cast<int>(playerIds.size()));
-        int i = 0;
-        for(int playerId: playerIds)
-        {
-            std::unique_ptr<Object> tank(
-                    new Tank(playerId, playerPositions[i].pos, playerPositions[i].angle));
-            objects[tank->id()] = std::move(tank);
-            i++;
-        }
     }
 
     std::vector<Object::PosInfo> GameRoom::getRandomPositions(int num)
