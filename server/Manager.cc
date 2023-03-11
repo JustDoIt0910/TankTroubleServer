@@ -140,9 +140,18 @@ namespace TankTrouble
                 server_->notifyGameOn(players);
                 room->init();
                 ServerBlockDataList blocksData = room->getBlocksData();
-                server_->blocksDataBroadcast(connIdsInRoom[info.roomId_], blocksData);
+                server_->blocksDataBroadcast(connIdsInRoom[info.roomId_], std::move(blocksData));
             }
-
+            else if(info.roomStatus_ == GameRoom::Playing)
+            {
+                if(info.playerNum_ < info.roomCap_)
+                {
+                    // TODO notify game off
+                    continue;
+                }
+                ServerObjectsData objectsData = room->getObjectsData();
+                server_->objectsDataBroadcast(connIdsInRoom[info.roomId_], std::move(objectsData));
+            }
         }
     }
 }

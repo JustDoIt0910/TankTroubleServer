@@ -12,15 +12,30 @@ namespace TankTrouble
     GameRoom::GameRoom(int id, const std::string& name, int cap):
             roomInfo_(id, name, cap, 0, New) {}
 
-    GameRoom::RoomInfo GameRoom::info() {return roomInfo_;}
+    GameRoom::RoomInfo GameRoom::info() const {return roomInfo_;}
 
-    ServerBlockDataList GameRoom::getBlocksData()
+    ServerBlockDataList GameRoom::getBlocksData() const
     {
         ServerBlockDataList data;
         for(const auto& entry: blocks)
         {
             const Block& block = entry.second;
             data.emplace_back(block.isHorizon(), block.center());
+        }
+        return std::move(data);
+    }
+
+    ServerObjectsData GameRoom::getObjectsData() const
+    {
+        ServerObjectsData data;
+        for(const auto& entry: objects)
+        {
+            const auto& obj = entry.second;
+            Object::PosInfo pos = obj->getCurrentPosition();
+            if(obj->type() == OBJ_SHELL)
+                data.shells_.emplace_back(pos.pos.x(), pos.pos.y());
+            else
+                data.tanks_.emplace_back(entry.first, pos);
         }
         return std::move(data);
     }
@@ -43,8 +58,6 @@ namespace TankTrouble
         playerIds.erase(playerId);
         idManager.returnTankId(playerId);
         roomInfo_.playerNum_--;
-        if(roomInfo_.roomStatus_ == Playing)
-            roomInfo_.roomStatus_ = Waiting;
     }
 
     void GameRoom::init()

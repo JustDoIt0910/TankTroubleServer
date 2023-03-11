@@ -124,9 +124,9 @@ namespace TankTrouble
     }
 
     void Server::blocksDataBroadcast(const std::unordered_set<std::string>& connIds,
-                                     ServerBlockDataList& data)
+                                     ServerBlockDataList data)
     {
-        loop_.queueInLoop([this, connIds, data = std::move(data)] () {
+        loop_.queueInLoop([this, connIds, data = std::move(data)] () mutable {
             Message blockUpdate = codec_.getEmptyMessage(MSG_UPDATE_BLOCKS);
             for(const ServerBlockData& blockData: data)
             {
@@ -144,6 +144,40 @@ namespace TankTrouble
                     continue;
                 Codec::sendMessage(onlineUsers_[connId].conn_,
                                    MSG_UPDATE_BLOCKS, blockUpdate);
+            }
+        });
+    }
+
+    void Server::objectsDataBroadcast(const std::unordered_set<std::string>& connIds, ServerObjectsData data)
+    {
+        loop_.queueInLoop([this, connIds, objs(std::move(data))] () mutable {
+            Message objectsUpdate = codec_.getEmptyMessage(MSG_UPDATE_OBJECTS);
+            for(const ServerTankData& tank: objs.tanks_)
+            {
+                StructField<uint8_t, uint64_t, uint64_t, uint64_t> elem("", {
+                    "id", "center_x", "center_y", "angle"
+                });
+                elem.set<uint8_t>("id", tank.id_);
+                elem.set<uint64_t>("center_x", tank.centerX_);
+                elem.set<uint64_t>("center_y", tank.centerY_);
+                elem.set<uint64_t>("angle", tank.angle_);
+                objectsUpdate.addArrayElement("tanks", elem);
+            }
+            for(const ServerShellData& shell: objs.shells_)
+            {
+                StructField<uint64_t, uint64_t> elem("", {
+                        "x", "y"
+                });
+                elem.set<uint64_t>("center_x", shell.x_);
+                elem.set<uint64_t>("center_y", shell.y_);
+                objectsUpdate.addArrayElement("shells", elem);
+            }
+            for(const std::string& connId: connIds)
+            {
+                if(onlineUsers_.find(connId) == onlineUsers_.end())
+                    continue;
+                Codec::sendMessage(onlineUsers_[connId].conn_,
+                                   MSG_UPDATE_OBJECTS, objectsUpdate);
             }
         });
     }

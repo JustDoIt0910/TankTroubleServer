@@ -50,8 +50,9 @@ namespace TankTrouble
         void playerQuit(uint8_t playerId);
 
         void init();
-        RoomInfo info();
-        ServerBlockDataList getBlocksData();
+        RoomInfo info() const;
+        ServerBlockDataList getBlocksData() const;
+        ServerObjectsData getObjectsData() const;
         void setStatus(GameRoom::RoomStatus newStatus);
 
     private:
