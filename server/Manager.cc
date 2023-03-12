@@ -30,16 +30,16 @@ namespace TankTrouble
     void Manager::createRoom(const std::string& name, int cap)
     {managerLoop->queueInLoop([this, name, cap] () { manageCreateRoom(name, cap);});}
 
-    void Manager::joinRoom(const std::string& connId, uint8_t roomId)
-    {managerLoop->queueInLoop([this, connId, roomId] () { manageJoinRoom(connId, roomId);});}
+    void Manager::joinRoom(int userId, uint8_t roomId)
+    {managerLoop->queueInLoop([this, userId, roomId] () { manageJoinRoom(userId, roomId);});}
 
-    void Manager::quitRoom(const std::string &connId)
-    {managerLoop->queueInLoop([this, connId] () { manageQuitRoom(connId);});}
+    void Manager::quitRoom(int userId)
+    {managerLoop->queueInLoop([this, userId] () { manageQuitRoom(userId);});}
 
-    void Manager::control(const std::string& connId, int action, bool enable)
+    void Manager::control(int userId, int action, bool enable)
     {
-        managerLoop->queueInLoop([this, connId, action, enable] () {
-            manageControl(connId, action, enable);
+        managerLoop->queueInLoop([this, userId, action, enable] () {
+            manageControl(userId, action, enable);
         });
     }
 
@@ -63,52 +63,53 @@ namespace TankTrouble
         updateRoomsInfo();
     }
 
-    void Manager::manageJoinRoom(const std::string& connId, uint8_t roomId)
+    void Manager::manageJoinRoom(int userId, uint8_t roomId)
     {
         managerLoop->assertInLoopThread();
-        if(playersInfo.find(connId) != playersInfo.end())
+        if(playersInfo.find(userId) != playersInfo.end())
         {
-            server->joinRoomRespond(connId, roomId, Codec::ERR_IS_IN_ROOM);
+            server->joinRoomRespond(userId, roomId, Codec::ERR_IS_IN_ROOM);
             return;
         }
         if(rooms.find(roomId) == rooms.end())
         {
-            server->joinRoomRespond(connId, roomId, Codec::ERR_ROOM_NOT_EXIST);
+            server->joinRoomRespond(userId, roomId, Codec::ERR_ROOM_NOT_EXIST);
             return;
         }
         if(rooms[roomId]->info().roomStatus_ == GameRoom::Playing ||
             rooms[roomId]->info().playerNum_ == rooms[roomId]->info().roomCap_)
         {
-            server->joinRoomRespond(connId, roomId, Codec::ERR_ROOM_FULL);
+            server->joinRoomRespond(userId, roomId, Codec::ERR_ROOM_FULL);
             return;
         }
         uint8_t playerId = rooms[roomId]->newPlayer();
-        playersInfo[connId] = PlayerInfo(roomId, playerId);
-        connIdsInRoom[roomId].insert(connId);
-        assert(rooms[roomId]->info().playerNum_ == connIdsInRoom[roomId].size());
-        server->joinRoomRespond(connId, roomId, Codec::JOIN_ROOM_SUCCESS);
+        playersInfo[userId] = PlayerInfo(roomId, playerId);
+        userIdsInRoom[roomId].insert(userId);
+        assert(rooms[roomId]->info().playerNum_ == userIdsInRoom[roomId].size());
+        server->joinRoomRespond(userId, roomId, Codec::JOIN_ROOM_SUCCESS);
         updateRoomsInfo();
     }
 
-    void Manager::manageQuitRoom(const std::string &connId)
+    void Manager::manageQuitRoom(int userId)
     {
-        if(playersInfo.find(connId) == playersInfo.end())
+        if(playersInfo.find(userId) == playersInfo.end())
             return;
-        PlayerInfo player = playersInfo[connId];
+        PlayerInfo player = playersInfo[userId];
         if(rooms.find(player.roomId_) == rooms.end())
             return;
-        rooms[player.roomId_]->playerQuit(player.playerId_);
-        connIdsInRoom[player.roomId_].erase(connId);
-        assert(rooms[player.roomId_]->info().playerNum_ == connIdsInRoom[player.roomId_].size());
-        playersInfo.erase(connId);
+        uint32_t gameScore = rooms[player.roomId_]->playerQuit(player.playerId_);
+        userIdsInRoom[player.roomId_].erase(userId);
+        assert(rooms[player.roomId_]->info().playerNum_ == userIdsInRoom[player.roomId_].size());
+        playersInfo.erase(userId);
+        server->saveOnlineUserInfo(userId, gameScore);
         updateRoomsInfo();
     }
 
-    void Manager::manageControl(const std::string& connId, int action, bool enable)
+    void Manager::manageControl(int userId, int action, bool enable)
     {
-        if(playersInfo.find(connId) == playersInfo.end())
+        if(playersInfo.find(userId) == playersInfo.end())
             return;
-        PlayerInfo player = playersInfo[connId];
+        PlayerInfo player = playersInfo[userId];
         if(rooms.find(player.roomId_) == rooms.end())
             return;
         rooms[player.roomId_]->control(player.playerId_, action, enable);
@@ -144,7 +145,7 @@ namespace TankTrouble
         managerLoop->runAfter(2.0, [this, roomId] () {
             rooms[roomId]->init();
             ServerBlockDataList blocksData = rooms[roomId]->getBlocksData();
-            server->blocksDataBroadcast(connIdsInRoom[roomId], std::move(blocksData));
+            server->blocksDataBroadcast(userIdsInRoom[roomId], std::move(blocksData));
         });
     }
 
@@ -157,32 +158,33 @@ namespace TankTrouble
             if(info.roomStatus_ == GameRoom::Waiting && info.playerNum_ == info.roomCap_)
             {
                 room->setStatus(GameRoom::Playing);
-                std::vector<std::pair<std::string, uint8_t>> players;
-                for(const std::string& connId: connIdsInRoom[info.roomId_])
+                std::vector<std::pair<int, uint8_t>> players;
+                for(int userId: userIdsInRoom[info.roomId_])
                 {
-                    uint8_t playerId = playersInfo[connId].playerId_;
-                    players.emplace_back(connId, playerId);
+                    uint8_t playerId = playersInfo[userId].playerId_;
+                    players.emplace_back(userId, playerId);
                 }
                 server->notifyGameOn(players);
                 room->init();
                 ServerBlockDataList blocksData = room->getBlocksData();
-                server->blocksDataBroadcast(connIdsInRoom[info.roomId_], std::move(blocksData));
+                server->blocksDataBroadcast(userIdsInRoom[info.roomId_], std::move(blocksData));
             }
             else if(info.roomStatus_ == GameRoom::Playing)
             {
                 if(info.playerNum_ < info.roomCap_)
                 {
-                    // TODO notify game off
+                    room->setStatus(GameRoom::Waiting);
+                    server->notifyGameOff(userIdsInRoom[info.roomId_]);
                     continue;
                 }
                 room->moveAll();
                 ServerObjectsData objectsData = room->getObjectsData();
-                server->objectsDataBroadcast(connIdsInRoom[info.roomId_], std::move(objectsData));
+                server->objectsDataBroadcast(userIdsInRoom[info.roomId_], std::move(objectsData));
                 if(room->needRestart())
                 {
                     restartRoom(room->info().roomId_);
                     auto scores = room->getPlayersScore();
-                    server->playersScoreBroadcast(connIdsInRoom[info.roomId_], std::move(scores));
+                    server->playersScoreBroadcast(userIdsInRoom[info.roomId_], std::move(scores));
                 }
             }
         }

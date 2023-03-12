@@ -84,11 +84,13 @@ namespace TankTrouble
         return playerId;
     }
 
-    void GameRoom::playerQuit(uint8_t playerId)
+    uint32_t GameRoom::playerQuit(uint8_t playerId)
     {
+        uint32_t score = players[playerId];
         players.erase(playerId);
         idManager.returnTankId(playerId);
         roomInfo.playerNum_--;
+        return score;
     }
 
     void GameRoom::init()

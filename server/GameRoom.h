@@ -51,7 +51,7 @@ namespace TankTrouble
 
         GameRoom(int id, const std::string& name, int cap);
         uint8_t newPlayer();
-        void playerQuit(uint8_t playerId);
+        uint32_t playerQuit(uint8_t playerId);
 
         void init();
         RoomInfo info() const;

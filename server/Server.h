@@ -33,16 +33,19 @@ namespace TankTrouble
         void onLogin(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp);
         void onCreateRoom(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp);
         void onJoinRoom(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp);
+        void onQuitRoom(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp);
         void onControlMessage(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp);
 
         void roomsInfoBroadcast(Manager::RoomInfoList newInfoList);
-        void joinRoomRespond(const std::string& connId, uint8_t roomId, Codec::StatusCode code);
-        void notifyGameOn(std::vector<std::pair<std::string, uint8_t>> playersInfo);
-        void blocksDataBroadcast(const std::unordered_set<std::string>& connIds, ServerBlockDataList data);
-        void objectsDataBroadcast(const std::unordered_set<std::string>& connIds, ServerObjectsData data);
-        void playersScoreBroadcast(const std::unordered_set<std::string>& connIds,
+        void joinRoomRespond(int userId, uint8_t roomId, Codec::StatusCode code);
+        void notifyGameOn(std::vector<std::pair<int, uint8_t>> playersInfo);
+        void notifyGameOff(const std::unordered_set<int>& userIds);
+        void blocksDataBroadcast(const std::unordered_set<int>& userIds, ServerBlockDataList data);
+        void objectsDataBroadcast(const std::unordered_set<int>& userIds, ServerObjectsData data);
+        void playersScoreBroadcast(const std::unordered_set<int>& userIds,
                                    std::unordered_map<uint8_t, uint32_t> scores);
-        void sendRoomsInfo(const std::string& connId = std::string());
+        void saveOnlineUserInfo(int userId, uint32_t gameScore);
+        void sendRoomsInfo(int userId = 0);
         void handleDisconnection(const muduo::net::TcpConnectionPtr& conn);
 
         muduo::net::EventLoop loop_;
@@ -52,7 +55,8 @@ namespace TankTrouble
         int maxRoomNum_;
         std::unique_ptr<orm::DB> db_;
         Codec codec_;
-        std::unordered_map<std::string, OnlineUser> onlineUsers_;
+        std::unordered_map<int, OnlineUser> onlineUsers_;
+        std::unordered_map<std::string, int> connIdToUserId_;
         Manager::RoomInfoList roomInfos_;
     };
 }
