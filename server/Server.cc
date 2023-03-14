@@ -7,6 +7,16 @@
 #include "tinyorm/model.h"
 #include "model/User.h"
 
+void setNonBlocking(int fd)
+{
+    int opts = ::fcntl(fd, F_GETFL);
+    if(opts < 0)
+        abort();
+    opts |= O_NONBLOCK;
+    if(::fcntl(fd, F_SETFL, opts) < 0)
+        abort();
+}
+
 namespace TankTrouble
 {
     using std::placeholders::_1;
@@ -40,6 +50,14 @@ namespace TankTrouble
                                std::bind(&Server::onQuitRoom, this, _1, _2, _3));
         codec_.registerHandler(MSG_CONTROL,
                                std::bind(&Server::onControlMessage, this, _1, _2, _3));
+        udpSocket_ = ::socket(AF_INET, SOCK_DGRAM, 0);
+        assert(udpSocket_ >= 0);
+        setNonBlocking(udpSocket_);
+        muduo::net::InetAddress udpAddr(port + 1);
+        assert(::bind(udpSocket_, udpAddr.getSockAddr(), static_cast<socklen_t>(sizeof(sockaddr))) == 0);
+        udpChannel_ = std::make_unique<muduo::net::Channel>(&loop_, udpSocket_);
+        udpChannel_->setReadCallback([this] (muduo::Timestamp) {onUdpHandshake();});
+        udpChannel_->enableReading();
     }
 
     /*************************************** Message handlers ****************************************/
@@ -74,6 +92,7 @@ namespace TankTrouble
         Message resp = codec_.getEmptyMessage(MSG_LOGIN_RESP);
         resp.setField<Field<std::string>>("nickname", onlineUser.nickname_);
         resp.setField<Field<uint32_t>>("score", onlineUser.score_);
+        resp.setField<Field<uint32_t>>("user_id", user.id);
         Codec::sendMessage(conn, MSG_LOGIN_RESP, resp);
         sendRoomsInfo(user.id);
     }
@@ -112,6 +131,36 @@ namespace TankTrouble
         bool enable = message.getField<Field<uint8_t>>("enable").get() == 1;
         manager_.control(connIdToUserId_[connId], action, enable);
     }
+
+    void Server::onUdpHandshake()
+    {
+        char buf[256];
+        struct sockaddr clientAddr{};
+        auto len = static_cast<socklen_t>(sizeof(clientAddr));
+        ssize_t n = ::recvfrom(udpSocket_, buf, sizeof(buf), 0, &clientAddr, &len);
+        muduo::net::Buffer data;
+        data.append(buf, n);
+        if(data.readableBytes() < HeaderLen)
+            return;
+        FixHeader header = getHeader(&data);
+        if(data.readableBytes() < HeaderLen + header.messageLen)
+            return;
+        data.retrieve(HeaderLen);
+        if(header.messageType == MSG_UDP_HANDSHAKE)
+        {
+            Message handshake = codec_.getEmptyMessage(MSG_UDP_HANDSHAKE);
+            handshake.fill(&data);
+            std::string msg = handshake.getField<Field<std::string>>("msg").get();
+            int userId = static_cast<int>(handshake.getField<Field<uint32_t>>("user_id").get());
+            if(msg == "handshake")
+            {
+                if(onlineUsers_.find(userId) == onlineUsers_.end())
+                    return;
+                onlineUsers_[userId].udpAddr_ = clientAddr;
+                ::sendto(udpSocket_, buf, n, 0, &clientAddr, len);
+            }
+        }
+    };
 
     /*********************************** Callbacks for manager *****************************************/
 
@@ -224,12 +273,15 @@ namespace TankTrouble
                 elem.set<uint64_t>("y", shell.y_);
                 objectsUpdate.addArrayElement("shells", elem);
             }
+            muduo::net::Buffer buf = Codec::packMessage(MSG_UPDATE_OBJECTS, objectsUpdate);
             for(int userId: userIds)
             {
                 if(onlineUsers_.find(userId) == onlineUsers_.end() || onlineUsers_[userId].disconnecting_)
                     continue;
-                Codec::sendMessage(onlineUsers_[userId].conn_,
-                                   MSG_UPDATE_OBJECTS, objectsUpdate);
+//                Codec::sendMessage(onlineUsers_[userId].conn_,
+//                                   MSG_UPDATE_OBJECTS, objectsUpdate);
+                sendto(udpSocket_, buf.peek(), buf.readableBytes(), 0,
+                       &onlineUsers_[userId].udpAddr_, static_cast<socklen_t>(sizeof(sockaddr)));
             }
         });
     }

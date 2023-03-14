@@ -14,13 +14,16 @@ namespace TankTrouble
     struct OnlineUser
     {
         muduo::net::TcpConnectionPtr conn_;
+        struct sockaddr udpAddr_;
         std::string nickname_;
         uint32_t score_;
         bool disconnecting_;
 
         OnlineUser(): score_(0), disconnecting_(false) {};
-        OnlineUser(const muduo::net::TcpConnectionPtr& conn, const std::string& nickname, int score):
-            conn_(conn), nickname_(nickname), score_(score), disconnecting_(false) {}
+        OnlineUser(const muduo::net::TcpConnectionPtr& conn,
+                   const std::string& nickname, int score):
+            conn_(conn), nickname_(nickname),
+            score_(score),disconnecting_(false) {}
     };
 
     struct PlayerInfo

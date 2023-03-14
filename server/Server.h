@@ -6,6 +6,7 @@
 #define TANK_TROUBLE_SERVER_SERVER_H
 #include "muduo/net/TcpServer.h"
 #include "muduo/net/EventLoop.h"
+#include "muduo/net/Channel.h"
 #include "protocol/Codec.h"
 #include "Data.h"
 #include "Manager.h"
@@ -48,6 +49,8 @@ namespace TankTrouble
         void sendRoomsInfo(int userId = 0);
         void handleDisconnection(const muduo::net::TcpConnectionPtr& conn);
 
+        void onUdpHandshake();
+
         muduo::net::EventLoop loop_;
         muduo::net::TcpServer server_;
         friend class Manager;
@@ -55,6 +58,8 @@ namespace TankTrouble
         int maxRoomNum_;
         std::unique_ptr<orm::DB> db_;
         Codec codec_;
+        int udpSocket_;
+        std::unique_ptr<muduo::net::Channel> udpChannel_;
         std::unordered_map<int, OnlineUser> onlineUsers_;
         std::unordered_map<std::string, int> connIdToUserId_;
         Manager::RoomInfoList roomInfos_;
