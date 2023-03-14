@@ -3,6 +3,7 @@
 //
 
 #include "Codec.h"
+#include "ev/utils/Timestamp.h"
 
 namespace TankTrouble
 {
@@ -90,19 +91,19 @@ namespace TankTrouble
         handlers_[messageType] = std::move(handler);
     }
 
-    muduo::net::Buffer Codec::packMessage(int messageType, const Message& message)
+    ev::net::Buffer Codec::packMessage(int messageType, const Message& message)
     {
-        muduo::net::Buffer buf;
+        ev::net::Buffer buf;
         FixHeader header(messageType, message.size());
         header.toByteArray(&buf);
         message.toByteArray(&buf);
         return std::move(buf);
     }
 
-    void Codec::sendMessage(const muduo::net::TcpConnectionPtr& conn, int messageType, const Message& message)
+    void Codec::sendMessage(const ev::net::TcpConnectionPtr& conn, int messageType, const Message& message)
     {
-        muduo::net::Buffer buf = packMessage(messageType, message);
-        conn->send(&buf);
+        ev::net::Buffer buf = packMessage(messageType, message);
+        conn->send(buf);
     }
 
     Message Codec::getEmptyMessage(int messageType)
@@ -112,9 +113,9 @@ namespace TankTrouble
         return std::move(messages_[messageType].getMessage());
     }
 
-    void Codec::handleMessage(const muduo::net::TcpConnectionPtr& conn,
-                              muduo::net::Buffer* buf,
-                              muduo::Timestamp receiveTime)
+    void Codec::handleMessage(const ev::net::TcpConnectionPtr& conn,
+                              ev::net::Buffer* buf,
+                              ev::Timestamp receiveTime)
     {
         while(true)
         {

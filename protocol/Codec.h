@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <functional>
 #include "Messages.h"
-#include "muduo/net/TcpConnection.h"
+#include "ev/net/TcpConnection.h"
 
 #define MSG_LOGIN               0x10
 #define MSG_LOGIN_RESP          0x11
@@ -42,15 +42,15 @@ namespace TankTrouble
             ERR_ROOM_FULL
         };
 
-        typedef std::function<void(const muduo::net::TcpConnectionPtr& conn,
+        typedef std::function<void(const ev::net::TcpConnectionPtr& conn,
                 Message,
-                muduo::Timestamp receiveTime)> MessageHandler;
+                ev::Timestamp receiveTime)> MessageHandler;
         Codec();
-        void handleMessage(const muduo::net::TcpConnectionPtr& conn,
-                           muduo::net::Buffer* buf,
-                           muduo::Timestamp receiveTime);
-        static muduo::net::Buffer packMessage(int messageType, const Message& message);
-        static void sendMessage(const muduo::net::TcpConnectionPtr& conn, int messageType, const Message& message);
+        void handleMessage(const ev::net::TcpConnectionPtr& conn,
+                           ev::net::Buffer* buf,
+                           ev::Timestamp receiveTime);
+        static ev::net::Buffer packMessage(int messageType, const Message& message);
+        static void sendMessage(const ev::net::TcpConnectionPtr& conn, int messageType, const Message& message);
         Message getEmptyMessage(int messageType);
         void registerHandler(int messageType, MessageHandler handler);
 

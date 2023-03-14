@@ -6,6 +6,7 @@
 #include "tinyorm/db.h"
 #include "tinyorm/model.h"
 #include "model/User.h"
+#include "ev/utils/Timestamp.h"
 
 void setNonBlocking(int fd)
 {
@@ -31,7 +32,7 @@ namespace TankTrouble
     const std::string Server::DBName = "tank_trouble";
 
     Server::Server(uint16_t port, int maxRoomNumber):
-            server_(&loop_, muduo::net::InetAddress(port), "TankTroubleServer"),
+            server_(&loop_, ev::net::Inet4Address(port)),
             manager_(this),
             maxRoomNum_(maxRoomNumber),
             db_(new orm::DB(DBHost, DBPort, DBUserName, DBPassword, DBName))
@@ -53,16 +54,16 @@ namespace TankTrouble
         udpSocket_ = ::socket(AF_INET, SOCK_DGRAM, 0);
         assert(udpSocket_ >= 0);
         setNonBlocking(udpSocket_);
-        muduo::net::InetAddress udpAddr(port + 1);
+        ev::net::Inet4Address udpAddr(port + 1);
         assert(::bind(udpSocket_, udpAddr.getSockAddr(), static_cast<socklen_t>(sizeof(sockaddr))) == 0);
-        udpChannel_ = std::make_unique<muduo::net::Channel>(&loop_, udpSocket_);
-        udpChannel_->setReadCallback([this] (muduo::Timestamp) {onUdpHandshake();});
+        udpChannel_ = std::make_unique<ev::reactor::Channel>(&loop_, udpSocket_);
+        udpChannel_->setReadCallback([this] (ev::Timestamp) {onUdpHandshake();});
         udpChannel_->enableReading();
     }
 
     /*************************************** Message handlers ****************************************/
 
-    void Server::onLogin(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp)
+    void Server::onLogin(const ev::net::TcpConnectionPtr& conn, Message message, ev::Timestamp)
     {
         std::string nickname = message.getField<Field<std::string>>("nickname").get();
         UserInfo user;
@@ -97,14 +98,14 @@ namespace TankTrouble
         sendRoomsInfo(user.id);
     }
 
-    void Server::onCreateRoom(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp)
+    void Server::onCreateRoom(const ev::net::TcpConnectionPtr& conn, Message message, ev::Timestamp)
     {
         std::string roomName = message.getField<Field<std::string>>("room_name").get();
         uint8_t roomCap = message.getField<Field<uint8_t>>("player_num").get();
         manager_.createRoom(roomName, roomCap);
     }
 
-    void Server::onJoinRoom(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp)
+    void Server::onJoinRoom(const ev::net::TcpConnectionPtr& conn, Message message, ev::Timestamp)
     {
         std::string connId = conn->peerAddress().toIpPort();
         if(connIdToUserId_.find(connId) == connIdToUserId_.end())
@@ -113,7 +114,7 @@ namespace TankTrouble
         manager_.joinRoom(connIdToUserId_[connId], roomId);
     }
 
-    void Server::onQuitRoom(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp)
+    void Server::onQuitRoom(const ev::net::TcpConnectionPtr& conn, Message message, ev::Timestamp)
     {
         auto msg = message.getField<Field<std::string>>("msg").get();
         if(msg != "quit")
@@ -122,7 +123,7 @@ namespace TankTrouble
         manager_.quitRoom(userId);
     }
 
-    void Server::onControlMessage(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp)
+    void Server::onControlMessage(const ev::net::TcpConnectionPtr& conn, Message message, ev::Timestamp)
     {
         std::string connId = conn->peerAddress().toIpPort();
         if(connIdToUserId_.find(connId) == connIdToUserId_.end())
@@ -138,7 +139,7 @@ namespace TankTrouble
         struct sockaddr clientAddr{};
         auto len = static_cast<socklen_t>(sizeof(clientAddr));
         ssize_t n = ::recvfrom(udpSocket_, buf, sizeof(buf), 0, &clientAddr, &len);
-        muduo::net::Buffer data;
+        ev::net::Buffer data;
         data.append(buf, n);
         if(data.readableBytes() < HeaderLen)
             return;
@@ -273,7 +274,7 @@ namespace TankTrouble
                 elem.set<uint64_t>("y", shell.y_);
                 objectsUpdate.addArrayElement("shells", elem);
             }
-            muduo::net::Buffer buf = Codec::packMessage(MSG_UPDATE_OBJECTS, objectsUpdate);
+            ev::net::Buffer buf = Codec::packMessage(MSG_UPDATE_OBJECTS, objectsUpdate);
             for(int userId: userIds)
             {
                 if(onlineUsers_.find(userId) == onlineUsers_.end() || onlineUsers_[userId].disconnecting_)
@@ -353,7 +354,7 @@ namespace TankTrouble
                 Codec::sendMessage(entry.second.conn_, MSG_ROOM_INFO, message);
     }
 
-    void Server::handleDisconnection(const muduo::net::TcpConnectionPtr& conn)
+    void Server::handleDisconnection(const ev::net::TcpConnectionPtr& conn)
     {
         if(conn->disconnected())
         {

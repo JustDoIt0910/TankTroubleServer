@@ -5,7 +5,7 @@
 #include "Manager.h"
 #include "Server.h"
 #include "GameRoom.h"
-#include "muduo/net/EventLoop.h"
+#include "ev/reactor/EventLoop.h"
 #include <cassert>
 
 namespace TankTrouble
@@ -117,7 +117,7 @@ namespace TankTrouble
 
     void Manager::manage()
     {
-        muduo::net::EventLoop loop;
+        ev::reactor::EventLoop loop;
         {
             std::unique_lock<std::mutex> lk(mu);
             managerLoop = &loop;

@@ -12,8 +12,6 @@
 #include "GameRoom.h"
 #include "Data.h"
 
-namespace muduo::net {class EventLoop;}
-
 namespace TankTrouble
 {
     class Server;
@@ -42,7 +40,7 @@ namespace TankTrouble
         void restartRoom(int roomId);
 
         Server* server;
-        muduo::net::EventLoop* managerLoop;
+        ev::reactor::EventLoop* managerLoop;
         std::thread managerThread;
         std::mutex mu;
         std::condition_variable cond;

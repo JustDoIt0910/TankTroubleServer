@@ -4,9 +4,9 @@
 
 #ifndef TANK_TROUBLE_SERVER_SERVER_H
 #define TANK_TROUBLE_SERVER_SERVER_H
-#include "muduo/net/TcpServer.h"
-#include "muduo/net/EventLoop.h"
-#include "muduo/net/Channel.h"
+#include "ev/net/TcpServer.h"
+#include "ev/reactor/EventLoop.h"
+#include "ev/reactor/Channel.h"
 #include "protocol/Codec.h"
 #include "Data.h"
 #include "Manager.h"
@@ -31,11 +31,11 @@ namespace TankTrouble
         ~Server();
 
     private:
-        void onLogin(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp);
-        void onCreateRoom(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp);
-        void onJoinRoom(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp);
-        void onQuitRoom(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp);
-        void onControlMessage(const muduo::net::TcpConnectionPtr& conn, Message message, muduo::Timestamp);
+        void onLogin(const ev::net::TcpConnectionPtr& conn, Message message, ev::Timestamp);
+        void onCreateRoom(const ev::net::TcpConnectionPtr& conn, Message message, ev::Timestamp);
+        void onJoinRoom(const ev::net::TcpConnectionPtr& conn, Message message, ev::Timestamp);
+        void onQuitRoom(const ev::net::TcpConnectionPtr& conn, Message message, ev::Timestamp);
+        void onControlMessage(const ev::net::TcpConnectionPtr& conn, Message message, ev::Timestamp);
 
         void roomsInfoBroadcast(Manager::RoomInfoList newInfoList);
         void joinRoomRespond(int userId, uint8_t roomId, Codec::StatusCode code);
@@ -47,19 +47,19 @@ namespace TankTrouble
                                    std::unordered_map<uint8_t, uint32_t> scores);
         void saveOnlineUserInfo(int userId, uint32_t gameScore);
         void sendRoomsInfo(int userId = 0);
-        void handleDisconnection(const muduo::net::TcpConnectionPtr& conn);
+        void handleDisconnection(const ev::net::TcpConnectionPtr& conn);
 
         void onUdpHandshake();
 
-        muduo::net::EventLoop loop_;
-        muduo::net::TcpServer server_;
+        ev::reactor::EventLoop loop_;
+        ev::net::TcpServer server_;
         friend class Manager;
         Manager manager_;
         int maxRoomNum_;
         std::unique_ptr<orm::DB> db_;
         Codec codec_;
         int udpSocket_;
-        std::unique_ptr<muduo::net::Channel> udpChannel_;
+        std::unique_ptr<ev::reactor::Channel> udpChannel_;
         std::unordered_map<int, OnlineUser> onlineUsers_;
         std::unordered_map<std::string, int> connIdToUserId_;
         Manager::RoomInfoList roomInfos_;

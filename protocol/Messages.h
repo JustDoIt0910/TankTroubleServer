@@ -9,9 +9,10 @@
 #include <cstring>
 #include <vector>
 #include <tuple>
-#include "muduo/net/Buffer.h"
 #include <unordered_map>
 #include <memory>
+#include "ev/net/Buffer.h"
+#include "ev/net/Endian.h"
 
 #define HeaderLen   3
 
@@ -20,20 +21,20 @@ namespace TankTrouble
     template<typename T>
     inline T hostToNetwork(T val) {return val;}
     template<>
-    inline uint16_t hostToNetwork<uint16_t>(uint16_t val){return muduo::net::sockets::hostToNetwork16(val);}
+    inline uint16_t hostToNetwork<uint16_t>(uint16_t val){return ev::net::hostToNetwork16(val);}
     template<>
-    inline uint32_t hostToNetwork<uint32_t>(uint32_t val){return muduo::net::sockets::hostToNetwork32(val);}
+    inline uint32_t hostToNetwork<uint32_t>(uint32_t val){return ev::net::hostToNetwork32(val);}
     template<>
-    inline uint64_t hostToNetwork<uint64_t>(uint64_t val){return muduo::net::sockets::hostToNetwork64(val);}
+    inline uint64_t hostToNetwork<uint64_t>(uint64_t val){return ev::net::hostToNetwork64(val);}
 
     template<typename T>
     inline T networkToHost(T val) {return val;}
     template<>
-    inline uint16_t networkToHost<uint16_t>(uint16_t val){return muduo::net::sockets::networkToHost16(val);}
+    inline uint16_t networkToHost<uint16_t>(uint16_t val){return ev::net::networkToHost16(val);}
     template<>
-    inline uint32_t networkToHost<uint32_t>(uint32_t val){return muduo::net::sockets::networkToHost32(val);}
+    inline uint32_t networkToHost<uint32_t>(uint32_t val){return ev::net::networkToHost32(val);}
     template<>
-    inline uint64_t networkToHost<uint64_t>(uint64_t val){return muduo::net::sockets::networkToHost64(val);}
+    inline uint64_t networkToHost<uint64_t>(uint64_t val){return ev::net::networkToHost64(val);}
 
     struct FixHeader
     {
@@ -43,14 +44,14 @@ namespace TankTrouble
         FixHeader() = default;
         FixHeader(uint8_t mt, uint16_t ml): messageType(mt), messageLen(ml) {}
 
-        void toByteArray(muduo::net::Buffer* buf) const
+        void toByteArray(ev::net::Buffer* buf) const
         {
             buf->appendInt8(static_cast<int8_t>(messageType));
             buf->appendInt16(static_cast<int16_t>(messageLen));
         }
     };
 
-    inline FixHeader getHeader(const muduo::net::Buffer* buf)
+    inline FixHeader getHeader(const ev::net::Buffer* buf)
     {
         assert(buf->readableBytes() >= HeaderLen);
         FixHeader header{};
@@ -68,8 +69,8 @@ namespace TankTrouble
         virtual ~FieldBase() = default;
         [[nodiscard]] std::string name() const {return name_;}
         void setName(const std::string& name) {name_ = name;}
-        virtual void fill(muduo::net::Buffer* buf) = 0;
-        virtual void toByteArray(muduo::net::Buffer* buf) const = 0;
+        virtual void fill(ev::net::Buffer* buf) = 0;
+        virtual void toByteArray(ev::net::Buffer* buf) const = 0;
         [[nodiscard]] virtual size_t size() const = 0;
 
     protected:
@@ -82,7 +83,7 @@ namespace TankTrouble
         using type = T;
         explicit Field(const std::string& name): FieldBase(name) {}
         Field() = default;
-        void fill(muduo::net::Buffer* buf) override
+        void fill(ev::net::Buffer* buf) override
         {
             memcpy(&data_, buf->peek(), sizeof(T));
             data_ = networkToHost(data_);
@@ -92,7 +93,7 @@ namespace TankTrouble
         T get() {return data_;}
         void set(T val) {data_ = val;}
 
-        void toByteArray(muduo::net::Buffer* buf) const override
+        void toByteArray(ev::net::Buffer* buf) const override
         {
             T netOrder = hostToNetwork(data_);
             buf->append((char*)&netOrder, sizeof(T));
@@ -110,7 +111,7 @@ namespace TankTrouble
         using type = std::string;
         explicit Field(const std::string& name): FieldBase(name) {}
         Field() = default;
-        void fill(muduo::net::Buffer* buf) override
+        void fill(ev::net::Buffer* buf) override
         {
             data_ = std::string(buf->peek());
             buf->retrieve(data_.size() +1);
@@ -119,7 +120,7 @@ namespace TankTrouble
         std::string get() {return data_;}
         void set(const std::string& val) {data_ = val;}
 
-        void toByteArray(muduo::net::Buffer* buf) const override
+        void toByteArray(ev::net::Buffer* buf) const override
         {buf->append(data_.c_str(), data_.size() + 1);}
 
         [[nodiscard]] size_t size() const override {return data_.size() + 1;}
@@ -156,7 +157,7 @@ namespace TankTrouble
                 }, fields_);
         }
 
-        void fill(muduo::net::Buffer* buf) override
+        void fill(ev::net::Buffer* buf) override
         {
             //std::apply([buf](auto&&... f){((f.fill(buf)), ...);}, fields_);
             for(const std::string& name: names_)
@@ -179,7 +180,7 @@ namespace TankTrouble
             ((Field<T>*)(basesPtr_[fieldName]))->set(val);
         }
 
-        void toByteArray(muduo::net::Buffer* buf) const override
+        void toByteArray(ev::net::Buffer* buf) const override
         {
             //std::apply([buf](auto&&... f){((f.toByteArray(buf)), ...);}, fields_);
             for(const std::string& name: names_)
@@ -214,7 +215,7 @@ namespace TankTrouble
         explicit ArrayField(const std::string& name):
                 FieldBase(name) {}
 
-        void fill(muduo::net::Buffer* buf) override
+        void fill(ev::net::Buffer* buf) override
         {
             uint8_t len = *(const uint8_t*)(buf->peek());
             buf->retrieve(1);
@@ -229,7 +230,7 @@ namespace TankTrouble
 
         void addElement(const Elem& e) {fields_.push_back(e);}
 
-        void toByteArray(muduo::net::Buffer* buf) const override
+        void toByteArray(ev::net::Buffer* buf) const override
         {
             uint8_t len = fields_.size();
             buf->append(&len, 1);
@@ -256,7 +257,7 @@ namespace TankTrouble
                 FieldBase(name),
                 fieldNames_(std::move(fieldNames)) {}
 
-        void fill(muduo::net::Buffer* buf) override
+        void fill(ev::net::Buffer* buf) override
         {
             uint8_t len = *(const uint8_t*)(buf->peek());
             buf->retrieve(1);
@@ -274,7 +275,7 @@ namespace TankTrouble
 
         void addElement(const StructField<Ts...>& sf) {fields_.push_back(sf);}
 
-        void toByteArray(muduo::net::Buffer* buf) const override
+        void toByteArray(ev::net::Buffer* buf) const override
         {
             uint8_t len = fields_.size();
             buf->append(&len, 1);
@@ -375,7 +376,7 @@ namespace TankTrouble
             fields_[fb->name()] = std::move(std::unique_ptr<FieldBase>(fb));
         }
 
-        void fill(muduo::net::Buffer* buf)
+        void fill(ev::net::Buffer* buf)
         {
             for(const std::string& name: names_)
                 fields_[name]->fill(buf);
@@ -416,7 +417,7 @@ namespace TankTrouble
             ((ArrayField<T>*)(fields_[name].get()))->addElement(elem);
         }
 
-        void toByteArray(muduo::net::Buffer* buf) const {
+        void toByteArray(ev::net::Buffer* buf) const {
             for(const std::string& name: names_)
             {
                 auto it = fields_.find(name);
