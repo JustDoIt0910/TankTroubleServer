@@ -7,12 +7,14 @@
 #include "ev/net/TcpServer.h"
 #include "ev/reactor/EventLoop.h"
 #include "ev/reactor/Channel.h"
+#include "ev/utils/ThreadPool.h"
 #include "protocol/Codec.h"
 #include "Data.h"
 #include "Manager.h"
 #include <vector>
 
 namespace orm {class DB;}
+class UserInfo;
 
 namespace TankTrouble
 {
@@ -36,6 +38,7 @@ namespace TankTrouble
         void onJoinRoom(const ev::net::TcpConnectionPtr& conn, Message message, ev::Timestamp);
         void onQuitRoom(const ev::net::TcpConnectionPtr& conn, Message message, ev::Timestamp);
         void onControlMessage(const ev::net::TcpConnectionPtr& conn, Message message, ev::Timestamp);
+        void onUdpHandshake();
 
         void roomsInfoBroadcast(Manager::RoomInfoList newInfoList);
         void joinRoomRespond(int userId, uint8_t roomId, Codec::StatusCode code);
@@ -49,13 +52,18 @@ namespace TankTrouble
         void sendRoomsInfo(int userId = 0);
         void handleDisconnection(const ev::net::TcpConnectionPtr& conn);
 
-        void onUdpHandshake();
+        void findUserOrCreate(const ev::net::TcpConnectionPtr& conn,
+                              const std::string& nickname, Server* server);
+        void findUserCallback(const ev::net::TcpConnectionPtr& conn, const UserInfo& user);
+        void saveUserInfoToDB(int userId, uint32_t score, Server* server);
+        void saveUserInfoCallback(int userId);
 
         ev::reactor::EventLoop loop_;
         ev::net::TcpServer server_;
         friend class Manager;
         Manager manager_;
         int maxRoomNum_;
+        int roomNum_;
         std::unique_ptr<orm::DB> db_;
         Codec codec_;
         int udpSocket_;
@@ -63,6 +71,7 @@ namespace TankTrouble
         std::unordered_map<int, OnlineUser> onlineUsers_;
         std::unordered_map<std::string, int> connIdToUserId_;
         Manager::RoomInfoList roomInfos_;
+        ev::ThreadPool threadPool_;
     };
 }
 

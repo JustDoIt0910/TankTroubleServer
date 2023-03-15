@@ -18,7 +18,7 @@ namespace ev::net
         explicit Inet4Address(uint16_t port, bool loopBackOnly = false);
         explicit Inet4Address(const sockaddr_in& addr);
         [[nodiscard]] std::string toIpPort() const;
-        [[nodiscard]] std::string toIp() const;
+        [[nodiscard]] const std::string toIp() const;
         [[nodiscard]] uint16_t port() const;
         [[nodiscard]] sa_family_t family() const;
         [[nodiscard]] const struct sockaddr* getSockAddr() const;

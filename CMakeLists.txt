@@ -5,6 +5,7 @@ set(CMAKE_BUILD_TYPE "Debug")
 set(CMAKE_CXX_STANDARD 17)
 
 set(TankTroubleServer_SRC main.cpp
+        third_party/ev/ev/utils/ThreadPool.cc
         server/Server.cc
         server/Manager.cc
         server/GameRoom.cc

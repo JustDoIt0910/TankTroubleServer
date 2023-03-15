@@ -35,7 +35,9 @@ namespace TankTrouble
             server_(&loop_, ev::net::Inet4Address(port)),
             manager_(this),
             maxRoomNum_(maxRoomNumber),
-            db_(new orm::DB(DBHost, DBPort, DBUserName, DBPassword, DBName))
+            roomNum_(0),
+            db_(new orm::DB(DBHost, DBPort, DBUserName, DBPassword, DBName)),
+            threadPool_(4, 20)
     {
         db_->AutoMigrate(UserInfo());
 
@@ -66,43 +68,19 @@ namespace TankTrouble
     void Server::onLogin(const ev::net::TcpConnectionPtr& conn, Message message, ev::Timestamp)
     {
         std::string nickname = message.getField<Field<std::string>>("nickname").get();
-        UserInfo user;
-        if(db_->model<UserInfo>().Where("nickname = ?", nickname).First(user) < 1)
-        {
-            user.nickname = nickname;
-            user.score = 0;
-            user.createTime = Timestamp::now();
-            db_->model<UserInfo>().Create(user);
-            db_->model<UserInfo>().Select("id").Where("nickname = ?", nickname).First(user);
-        }
-        
-        // 用户重复登录，这可能是因为某一个客户端退出的时候，由于网络中断等原因，fin没有被服务器收到，
-        // 所以服务器中还残留着上次连接的信息，而客户端再次连接的时候，ip:port 组合很有可能和上一次不同，
-        // 这时服务器要清理掉上次的连接，并且重建 ip:port -> 用户id 的映射关系，才能保证正确性
-        if(onlineUsers_.find(user.id) != onlineUsers_.end())
-        {
-            std::string old = onlineUsers_[user.id].conn_->peerAddress().toIpPort();
-            connIdToUserId_.erase(old);
-        }
-        OnlineUser onlineUser(conn, user.nickname, user.score);
-        onlineUsers_[user.id] = onlineUser;
-        std::string connId = conn->peerAddress().toIpPort();
-        assert(connIdToUserId_.find(connId) == connIdToUserId_.end());
-        connIdToUserId_[connId] = user.id;
-
-        Message resp = codec_.getEmptyMessage(MSG_LOGIN_RESP);
-        resp.setField<Field<std::string>>("nickname", onlineUser.nickname_);
-        resp.setField<Field<uint32_t>>("score", onlineUser.score_);
-        resp.setField<Field<uint32_t>>("user_id", user.id);
-        Codec::sendMessage(conn, MSG_LOGIN_RESP, resp);
-        sendRoomsInfo(user.id);
+        threadPool_.run([this, conn, nickname] () {
+            findUserOrCreate(conn, nickname, this);
+        });
     }
 
     void Server::onCreateRoom(const ev::net::TcpConnectionPtr& conn, Message message, ev::Timestamp)
     {
+        if(roomNum_ >= maxRoomNum_)
+            return;
         std::string roomName = message.getField<Field<std::string>>("room_name").get();
         uint8_t roomCap = message.getField<Field<uint8_t>>("player_num").get();
         manager_.createRoom(roomName, roomCap);
+        roomNum_++;
     }
 
     void Server::onJoinRoom(const ev::net::TcpConnectionPtr& conn, Message message, ev::Timestamp)
@@ -315,15 +293,10 @@ namespace TankTrouble
             if(onlineUsers_.find(userId) == onlineUsers_.end())
                 return;
             onlineUsers_[userId].score_ += gameScore;
-            db_->model<UserInfo>().Where("nickname = ?", onlineUsers_[userId].nickname_)
-                .Update("score", static_cast<int>(onlineUsers_[userId].score_));
-            if(onlineUsers_[userId].disconnecting_)
-            {
-                std::string connId = onlineUsers_[userId].conn_->peerAddress().toIpPort();
-                onlineUsers_.erase(userId);
-                assert(connIdToUserId_.find(connId) != connIdToUserId_.end());
-                connIdToUserId_.erase(connId);
-            }
+            uint32_t newScore = onlineUsers_[userId].score_;
+            threadPool_.run([this, userId, newScore] () {
+                saveUserInfoToDB(userId, newScore, this);
+            });
         });
     }
 
@@ -369,10 +342,77 @@ namespace TankTrouble
             conn->setTcpNoDelay(true);
     }
 
+    /********************************** run in thread pool ************************************/
+
+    void Server::findUserOrCreate(const ev::net::TcpConnectionPtr& conn,
+                                  const std::string& nickname, Server* server)
+    {
+        UserInfo user;
+        if(db_->model<UserInfo>().Where("nickname = ?", nickname).First(user) < 1)
+        {
+            user.nickname = nickname;
+            user.score = 0;
+            user.createTime = Timestamp::now();
+            db_->model<UserInfo>().Create(user);
+            db_->model<UserInfo>().Select("id").Where("nickname = ?", nickname).First(user);
+        }
+        server->findUserCallback(conn, user);
+    }
+
+    void Server::saveUserInfoToDB(int userId, uint32_t score, Server* server)
+    {
+        db_->model<UserInfo>().Where("id = ?", userId).Update("score", static_cast<int>(score));
+        server->saveUserInfoCallback(userId);
+    }
+
+    /***************************** thread pool task callbacks ***********************************/
+
+    void Server::findUserCallback(const ev::net::TcpConnectionPtr& conn, const UserInfo& user)
+    {
+        loop_.queueInLoop([this, conn, user] () {
+            // 用户重复登录，这可能是因为某一个客户端退出的时候，由于网络中断等原因，fin没有被服务器收到，
+            // 所以服务器中还残留着上次连接的信息，而客户端再次连接的时候，ip:port 组合很有可能和上一次不同，
+            // 这时服务器要清理掉上次的连接，并且重建 ip:port -> 用户id 的映射关系，才能保证正确性
+            if(onlineUsers_.find(user.id) != onlineUsers_.end())
+            {
+                std::string old = onlineUsers_[user.id].conn_->peerAddress().toIpPort();
+                connIdToUserId_.erase(old);
+            }
+            OnlineUser onlineUser(conn, user.nickname, user.score);
+            onlineUsers_[user.id] = onlineUser;
+            std::string connId = conn->peerAddress().toIpPort();
+            assert(connIdToUserId_.find(connId) == connIdToUserId_.end());
+            connIdToUserId_[connId] = user.id;
+
+            Message resp = codec_.getEmptyMessage(MSG_LOGIN_RESP);
+            resp.setField<Field<std::string>>("nickname", onlineUser.nickname_);
+            resp.setField<Field<uint32_t>>("score", onlineUser.score_);
+            resp.setField<Field<uint32_t>>("user_id", user.id);
+            Codec::sendMessage(conn, MSG_LOGIN_RESP, resp);
+            sendRoomsInfo(user.id);
+        });
+    }
+
+    void Server::saveUserInfoCallback(int userId)
+    {
+        loop_.queueInLoop([this, userId] () {
+            if(onlineUsers_[userId].disconnecting_)
+            {
+                std::string connId = onlineUsers_[userId].conn_->peerAddress().toIpPort();
+                onlineUsers_.erase(userId);
+                assert(connIdToUserId_.find(connId) != connIdToUserId_.end());
+                connIdToUserId_.erase(connId);
+            }
+        });
+    }
+
+    /***************************************** public ******************************************/
+
     void Server::serve()
     {
         manager_.start();
         server_.start();
+        threadPool_.start();
         loop_.loop();
     }
 

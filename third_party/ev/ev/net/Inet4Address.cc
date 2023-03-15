@@ -44,7 +44,7 @@ namespace ev::net
         return buf;
     }
 
-    std::string Inet4Address::toIp() const
+    const std::string Inet4Address::toIp() const
     {
         char buf[32];
         size_t bufSize = sizeof(buf);
