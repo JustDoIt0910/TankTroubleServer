@@ -5,7 +5,7 @@ set(CMAKE_BUILD_TYPE "Debug")
 set(CMAKE_CXX_STANDARD 17)
 
 set(TankTroubleServer_SRC main.cpp
-        third_party/ev/ev/utils/ThreadPool.cc
+        ev/ev/utils/ThreadPool.cc
         server/Server.cc
         server/Manager.cc
         server/GameRoom.cc
@@ -20,14 +20,14 @@ set(TankTroubleServer_SRC main.cpp
         game/Maze.cc)
 
 
-set(SPDLOGD ${CMAKE_SOURCE_DIR}/third_party/tinyorm/mysql4cpp/spdlog/lib)
-set(EV ${CMAKE_BINARY_DIR}/third_party/ev/ev)
+set(SPDLOGD ${CMAKE_SOURCE_DIR}/tinyorm/tinyorm/mysql4cpp/spdlog/lib)
+set(EV ${CMAKE_BINARY_DIR}/ev/ev)
 
 set(EV_LIB reactor net pthread)
 set(TINYORM_LIB spdlog mysql4cpp mysqlclient nlohmann_json::nlohmann_json)
 
-add_subdirectory(third_party/tinyorm)
-add_subdirectory(third_party/ev)
+add_subdirectory(tinyorm/tinyorm)
+add_subdirectory(ev)
 
 link_directories(${SPDLOGD} ${EV})
 
@@ -37,7 +37,6 @@ target_link_libraries(TankTroubleServer ${EV_LIB} ${TINYORM_LIB})
 
 target_include_directories(TankTroubleServer PUBLIC
         ${CMAKE_SOURCE_DIR}
-        ${CMAKE_SOURCE_DIR}/third_party
-        ${CMAKE_SOURCE_DIR}/third_party/ev
-        ${CMAKE_SOURCE_DIR}/third_party/ev/ev
+        ${CMAKE_SOURCE_DIR}/ev
+        ${CMAKE_SOURCE_DIR}/ev/ev
     )
