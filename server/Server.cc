@@ -27,8 +27,8 @@ namespace TankTrouble
     const int Server::DefaultMaxRoomNumber = 10;
     const std::string Server::DBHost = "localhost";
     const int Server::DBPort = 3306;
-    const std::string Server::DBUserName = "root";
-    const std::string Server::DBPassword = "20010910cheng";
+    const std::string Server::DBUserName = "your_database_username";
+    const std::string Server::DBPassword = "your_database_password";
     const std::string Server::DBName = "tank_trouble";
 
     Server::Server(uint16_t port, int maxRoomNumber):
