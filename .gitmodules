@@ -1,0 +1,6 @@
+[submodule "ev"]
+	path = ev
+	url = https://github.com/JustDoIt0910/ev.git
+[submodule "tinyorm"]
+	path = tinyorm
+	url = https://github.com/JustDoIt0910/tinyorm.git
