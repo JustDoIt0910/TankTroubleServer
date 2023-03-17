@@ -4,7 +4,7 @@ project(TankTroubleServer)
 set(CMAKE_BUILD_TYPE "Debug")
 set(CMAKE_CXX_STANDARD 17)
 
-set(TankTroubleServer_SRC main.cpp
+set(TankTroubleServer_SRC main.cc
         ev/ev/utils/ThreadPool.cc
         server/Server.cc
         server/Manager.cc
@@ -37,6 +37,7 @@ target_link_libraries(TankTroubleServer ${EV_LIB} ${TINYORM_LIB})
 
 target_include_directories(TankTroubleServer PUBLIC
         ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/tinyorm
         ${CMAKE_SOURCE_DIR}/ev
         ${CMAKE_SOURCE_DIR}/ev/ev
     )
